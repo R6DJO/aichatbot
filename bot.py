@@ -7,8 +7,10 @@ import boto3
 import time
 import threading
 import base64
+import requests
 from telebot.types import InputFile
 from dotenv import load_dotenv
+from collections import defaultdict
 
 # Загрузка переменных окружения из .env
 load_dotenv()
@@ -69,6 +71,33 @@ def stop_typing():
     is_typing = False
 
 
+def fetch_models():
+    """Получить список моделей из API и сгруппировать по производителю"""
+    try:
+        models_url = f"{OPENAI_BASE_URL.rstrip('/')}/models"
+        response = requests.get(models_url, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+
+        # Группируем модели по owned_by
+        models_by_owner = defaultdict(list)
+        for model in data.get("data", []):
+            owner = model.get("owned_by", "unknown")
+            model_id = model.get("id", "")
+            if model_id:
+                models_by_owner[owner].append(model_id)
+
+        return dict(models_by_owner)
+    except Exception as e:
+        print(f"Error fetching models: {e}")
+        # Возврат к дефолтному списку при ошибке
+        return {
+            "z.ai": ["glm-4.7"],
+            "qwen": ["qwen3-coder-plus"],
+            "openai": ["gpt-5.2"],
+        }
+
+
 @bot.message_handler(commands=["help", "start"])
 def send_welcome(message):
     if not is_authorized(message):
@@ -76,7 +105,7 @@ def send_welcome(message):
         return
     bot.reply_to(
         message,
-        ("Привет! Я ChatGPT бот. Спроси меня что-нибудь!"),
+        ("Привет! Я AI бот. Спроси меня что-нибудь!"),
         parse_mode="Markdown",
     )
 
@@ -87,6 +116,66 @@ def clear_history(message):
         return
     clear_history_for_chat(message.chat.id)
     bot.reply_to(message, "История чата очищена!")
+
+
+@bot.message_handler(commands=["models"])
+def list_models(message):
+    if not is_authorized(message):
+        return
+
+    current_model = get_user_model(message.chat.id)
+    models_by_owner = fetch_models()
+
+    models_list = "📋 *Доступные модели:*\n\n"
+
+    for owner, models in sorted(models_by_owner.items()):
+        models_list += f"🏢 *{owner}*\n"
+        for model_id in sorted(models):
+            prefix = "▶️ " if model_id == current_model else "  "
+            models_list += f"{prefix}`{model_id}`\n"
+        models_list += "\n"
+
+    models_list += f"🔧 Текущая модель: `{current_model}`"
+    models_list += "\n\nИспользуй /model <название> для смены модели"
+
+    bot.reply_to(message, models_list, parse_mode="Markdown")
+
+
+@bot.message_handler(commands=["model"])
+def set_model(message):
+    if not is_authorized(message):
+        return
+    args = message.text.split("/model")[1].strip()
+    if len(args) == 0:
+        bot.reply_to(
+            message,
+            "Используй: /model <название>\n\nСписок моделей: /models",
+            parse_mode="Markdown",
+        )
+        return
+
+    model_name = args.strip()
+
+    # Проверяем, существует ли модель
+    models_by_owner = fetch_models()
+    all_models = []
+    for models in models_by_owner.values():
+        all_models.extend(models)
+
+    if model_name not in all_models:
+        bot.reply_to(
+            message,
+            f"❌ Модель `{model_name}` не найдена.\n\nСписок моделей: /models",
+            parse_mode="Markdown",
+        )
+        return
+
+    set_user_model(message.chat.id, model_name)
+    bot.reply_to(
+        message,
+        f"✅ Модель изменена на: `{model_name}`",
+        parse_mode="Markdown",
+    )
 
 
 @bot.message_handler(commands=["image"])
@@ -172,8 +261,50 @@ def voice(message):
         )
 
 
+def get_user_model(chat_id) -> str:
+    """Получить выбранную модель пользователя или дефолтную"""
+    s3client = get_s3_client()
+    try:
+        response = s3client.get_object(
+            Bucket=S3_BUCKET, Key=f"{chat_id}_settings.json"
+        )
+        settings = json.loads(response["Body"].read())
+        return settings.get("model", "glm-4.7")
+    except:
+        return "glm-4.7"
+
+
+def set_user_model(chat_id, model: str):
+    """Сохранить выбранную модель пользователя"""
+    s3client = get_s3_client()
+    try:
+        # Читаем текущие настройки
+        try:
+            response = s3client.get_object(
+                Bucket=S3_BUCKET, Key=f"{chat_id}_settings.json"
+            )
+            settings = json.loads(response["Body"].read())
+        except:
+            settings = {}
+
+        settings["model"] = model
+
+        s3client.put_object(
+            Bucket=S3_BUCKET,
+            Key=f"{chat_id}_settings.json",
+            Body=json.dumps(settings),
+        )
+    except Exception as e:
+        print(f"Error saving user model: {e}")
+
+
 def process_text_message(text, chat_id, image_content=None) -> str:
-    model = "glm-4.7"
+    # Если есть изображение, используем vision модель
+    if image_content is not None:
+        model = "gpt-4-vision-preview"
+    else:
+        model = get_user_model(chat_id)
+
     max_tokens = None
 
     # read current chat history
