@@ -17,7 +17,8 @@ from collections import defaultdict
 load_dotenv()
 
 TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN")
-TG_BOT_CHATS = os.environ.get("TG_BOT_CHATS").lower().split(",")
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "R6DJO")
+ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID", "1212054"))
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://api.proxyapi.ru/openai/v1")
 S3_KEY_ID = os.environ.get("S3_KEY_ID")
@@ -61,11 +62,125 @@ def get_s3_client():
 
 is_typing = False
 
-# Проверка доступа: только авторизованные пользователи
-def is_authorized(message):
-    if message.from_user.username is None:
+# ============ Управление пользователями ============
+
+def get_users_db():
+    """Получить базу пользователей из S3"""
+    s3client = get_s3_client()
+    try:
+        response = s3client.get_object(
+            Bucket=S3_BUCKET, Key=f"{ADMIN_CHAT_ID}_users.json"
+        )
+        return json.loads(response["Body"].read())
+    except:
+        return {"users": {}}
+
+
+def save_users_db(users_db):
+    """Сохранить базу пользователей в S3"""
+    s3client = get_s3_client()
+    try:
+        s3client.put_object(
+            Bucket=S3_BUCKET,
+            Key=f"{ADMIN_CHAT_ID}_users.json",
+            Body=json.dumps(users_db, indent=2),
+        )
+    except Exception as e:
+        app_logger.error(f"Error saving users db: {e}")
+
+
+def register_user(username, chat_id):
+    """Зарегистрировать нового пользователя со статусом pending"""
+    if not username:
+        return None
+
+    username_lower = username.lower()
+    users_db = get_users_db()
+
+    # Если пользователь уже есть, возвращаем его статус
+    if username_lower in users_db["users"]:
+        return users_db["users"][username_lower]["status"]
+
+    # Создаем нового пользователя
+    users_db["users"][username_lower] = {
+        "chat_id": chat_id,
+        "status": "pending",
+        "first_seen": datetime.now().isoformat(),
+        "username": username,
+    }
+    save_users_db(users_db)
+
+    app_logger.info(f"New user registered: {username}, chat_id={chat_id}")
+
+    # Уведомляем админа
+    try:
+        bot.send_message(
+            ADMIN_CHAT_ID,
+            f"🔔 *Новый пользователь*\n\n"
+            f"👤 Username: `@{username}`\n"
+            f"💬 Chat ID: `{chat_id}`\n"
+            f"📅 Дата: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
+            f"Для одобрения: `/approve {username}`\n"
+            f"Для отказа: `/deny {username}`",
+            parse_mode="Markdown",
+        )
+    except Exception as e:
+        app_logger.error(f"Error notifying admin: {e}")
+
+    return "pending"
+
+
+def get_user_status(username):
+    """Получить статус пользователя"""
+    if not username:
+        return "denied"
+
+    username_lower = username.lower()
+
+    # Админ всегда имеет доступ
+    if username_lower == ADMIN_USERNAME.lower():
+        return "approved"
+
+    users_db = get_users_db()
+    user = users_db["users"].get(username_lower)
+    return user["status"] if user else None
+
+
+def set_user_status(username, status):
+    """Установить статус пользователя"""
+    if not username:
         return False
-    return message.from_user.username.lower() in TG_BOT_CHATS
+
+    username_lower = username.lower()
+    users_db = get_users_db()
+
+    if username_lower not in users_db["users"]:
+        return False
+
+    users_db["users"][username_lower]["status"] = status
+    save_users_db(users_db)
+    app_logger.info(f"User {username} status changed to: {status}")
+    return True
+
+
+def is_authorized(message):
+    """Проверка доступа к боту"""
+    username = message.from_user.username
+
+    # Админ всегда имеет доступ
+    if username and username.lower() == ADMIN_USERNAME.lower():
+        return True
+
+    # Регистрируем/проверяем пользователя
+    status = register_user(username, message.chat.id)
+
+    return status == "approved"
+
+
+def is_admin(message):
+    """Проверка - является ли пользователь админом"""
+    username = message.from_user.username
+    return username and username.lower() == ADMIN_USERNAME.lower()
 
 def start_typing(chat_id):
     global is_typing
@@ -113,16 +228,187 @@ def fetch_models():
 
 @bot.message_handler(commands=["help", "start"])
 def send_welcome(message):
+    username = message.from_user.username
+
+    # Проверяем авторизацию
     if not is_authorized(message):
-        app_logger.warning(f"Unauthorized access attempt: user={message.from_user.username}, chat_id={message.chat.id}")
-        bot.reply_to(message, "У вас нет доступа к этому боту.")
+        status = get_user_status(username)
+        if status == "pending":
+            bot.reply_to(
+                message,
+                "⏳ *Ожидание подтверждения*\n\n"
+                "Ваша заявка на использование бота отправлена администратору. "
+                "Ожидайте ответа.",
+                parse_mode="Markdown",
+            )
+            return
+        elif status == "denied":
+            bot.reply_to(
+                message,
+                "❌ *Доступ запрещен*\n\n"
+                "Администратор отклонил вашу заявку на использование бота.",
+                parse_mode="Markdown",
+            )
+            return
+        else:
+            bot.reply_to(message, "❌ У вас нет доступа к этому боту.\n\nУбедитесь что у вас установлен username в Telegram.", parse_mode="Markdown")
+            return
+
+    app_logger.info(f"Command /start or /help: user={username}, chat_id={message.chat.id}")
+
+    # Для админа показываем расширенную справку
+    if is_admin(message):
+        help_text = (
+            "*🤖 AI Bot - Панель администратора*\n\n"
+            "👤 *Управление пользователями:*\n"
+            "`/users` — список всех пользователей\n"
+            "`/approve <username>` — разрешить доступ\n"
+            "`/deny <username>` — запретить доступ\n\n"
+            "⚙️ *Другие команды:*\n"
+            "`/models` — список AI моделей\n"
+            "`/model <name>` — выбрать модель\n"
+            "`/new` — очистить историю чата\n"
+            "`/image <prompt>` — генерация изображения"
+        )
+    else:
+        help_text = (
+            "*🤖 Привет! Я AI бот. Спроси меня что-нибудь!*\n\n"
+            "⚙️ *Доступные команды:*\n"
+            "`/models` — список AI моделей\n"
+            "`/model <name>` — выбрать модель\n"
+            "`/new` — очистить историю чата\n"
+            "`/image <prompt>` — генерация изображения"
+        )
+
+    bot.reply_to(message, help_text, parse_mode="Markdown")
+
+
+@bot.message_handler(commands=["users"])
+def list_users(message):
+    """Список всех пользователей (только для админа)"""
+    if not is_admin(message):
+        bot.reply_to(message, "❌ Эта команда доступна только администратору.", parse_mode="Markdown")
         return
-    app_logger.info(f"Command /start or /help: user={message.from_user.username}, chat_id={message.chat.id}")
-    bot.reply_to(
-        message,
-        ("Привет! Я AI бот. Спроси меня что-нибудь!"),
-        parse_mode="Markdown",
-    )
+
+    users_db = get_users_db()
+    users = users_db.get("users", {})
+
+    if not users:
+        bot.reply_to(message, "👥 Пользователей пока нет.", parse_mode="Markdown")
+        return
+
+    # Группируем по статусам
+    status_emoji = {
+        "approved": "✅",
+        "pending": "⏳",
+        "denied": "❌",
+    }
+
+    text = "👥 *Список пользователей:*\n\n"
+
+    for status in ["pending", "approved", "denied"]:
+        status_users = [u for u in users.values() if u["status"] == status]
+        if status_users:
+            text += f"{status_emoji[status]} *{status.title()}* ({len(status_users)}):\n"
+            for user in status_users:
+                username = user.get("username", "unknown")
+                chat_id = user.get("chat_id", "unknown")
+                first_seen = user.get("first_seen", "unknown")[:10]
+                text += f"  • `@{username}` — `{chat_id}` — {first_seen}\n"
+            text += "\n"
+
+    bot.reply_to(message, text, parse_mode="Markdown")
+    app_logger.info(f"Command /users: admin={message.from_user.username}, total_users={len(users)}")
+
+
+@bot.message_handler(commands=["approve"])
+def approve_user(message):
+    """Одобрить пользователя (только для админа)"""
+    if not is_admin(message):
+        return
+
+    args = message.text.split("/approve")[1].strip()
+    if len(args) == 0:
+        bot.reply_to(message, "Используйте: `/approve <username>`", parse_mode="Markdown")
+        return
+
+    username = args.strip().lstrip("@")
+    if not username:
+        bot.reply_to(message, "❌ Некорректное имя пользователя", parse_mode="Markdown")
+        return
+
+    if set_user_status(username, "approved"):
+        users_db = get_users_db()
+        user = users_db["users"].get(username.lower())
+        if user:
+            chat_id = user.get("chat_id")
+            try:
+                bot.send_message(
+                    chat_id,
+                    f"✅ *Доступ разрешён!*\n\n"
+                    f"Администратор одобрил вашу заявку. Теперь вы можете использовать бота.",
+                    parse_mode="Markdown",
+                )
+            except:
+                pass
+
+        bot.reply_to(
+            message,
+            f"✅ Пользователь `@{username}` одобрен.",
+            parse_mode="Markdown",
+        )
+        app_logger.info(f"User approved: {username} by admin {message.from_user.username}")
+    else:
+        bot.reply_to(
+            message,
+            f"❌ Пользователь `@{username}` не найден.",
+            parse_mode="Markdown",
+        )
+
+
+@bot.message_handler(commands=["deny"])
+def deny_user(message):
+    """Запретить пользователя (только для админа)"""
+    if not is_admin(message):
+        return
+
+    args = message.text.split("/deny")[1].strip()
+    if len(args) == 0:
+        bot.reply_to(message, "Используйте: `/deny <username>`", parse_mode="Markdown")
+        return
+
+    username = args.strip().lstrip("@")
+    if not username:
+        bot.reply_to(message, "❌ Некорректное имя пользователя", parse_mode="Markdown")
+        return
+
+    if set_user_status(username, "denied"):
+        users_db = get_users_db()
+        user = users_db["users"].get(username.lower())
+        if user:
+            chat_id = user.get("chat_id")
+            try:
+                bot.send_message(
+                    chat_id,
+                    f"❌ *Доступ запрещён*\n\n"
+                    f"Администратор отклонил вашу заявку.",
+                    parse_mode="Markdown",
+                )
+            except:
+                pass
+
+        bot.reply_to(
+            message,
+            f"❌ Пользователю `@{username}` запрещён доступ.",
+            parse_mode="Markdown",
+        )
+        app_logger.info(f"User denied: {username} by admin {message.from_user.username}")
+    else:
+        bot.reply_to(
+            message,
+            f"❌ Пользователь `@{username}` не найден.",
+            parse_mode="Markdown",
+        )
     if not is_authorized(message):
         bot.reply_to(message, "У вас нет доступа к этому боту.")
         return
