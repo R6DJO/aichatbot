@@ -8,6 +8,7 @@ import time
 import threading
 import base64
 import requests
+from datetime import datetime
 from telebot.types import InputFile
 from dotenv import load_dotenv
 from collections import defaultdict
@@ -26,6 +27,18 @@ S3_BUCKET = os.environ.get("S3_BUCKET")
 
 logger = telebot.logger
 telebot.logger.setLevel(logging.INFO)
+
+# Настройка логирования запросов
+os.makedirs("logs", exist_ok=True)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('logs/bot.log'),
+        logging.StreamHandler()
+    ]
+)
+app_logger = logging.getLogger(__name__)
 
 bot = telebot.TeleBot(TG_BOT_TOKEN, threaded=False)
 
@@ -101,6 +114,16 @@ def fetch_models():
 @bot.message_handler(commands=["help", "start"])
 def send_welcome(message):
     if not is_authorized(message):
+        app_logger.warning(f"Unauthorized access attempt: user={message.from_user.username}, chat_id={message.chat.id}")
+        bot.reply_to(message, "У вас нет доступа к этому боту.")
+        return
+    app_logger.info(f"Command /start or /help: user={message.from_user.username}, chat_id={message.chat.id}")
+    bot.reply_to(
+        message,
+        ("Привет! Я AI бот. Спроси меня что-нибудь!"),
+        parse_mode="Markdown",
+    )
+    if not is_authorized(message):
         bot.reply_to(message, "У вас нет доступа к этому боту.")
         return
     bot.reply_to(
@@ -115,11 +138,32 @@ def clear_history(message):
     if not is_authorized(message):
         return
     clear_history_for_chat(message.chat.id)
+    app_logger.info(f"History cleared: user={message.from_user.username}, chat_id={message.chat.id}")
     bot.reply_to(message, "История чата очищена!")
 
 
 @bot.message_handler(commands=["models"])
 def list_models(message):
+    if not is_authorized(message):
+        return
+
+    current_model = get_user_model(message.chat.id)
+    models_by_owner = fetch_models()
+
+    models_list = "📋 *Доступные модели:*\n\n"
+
+    for owner, models in sorted(models_by_owner.items()):
+        models_list += f"🏢 *{owner}*\n"
+        for model_id in sorted(models):
+            prefix = "▶️ " if model_id == current_model else "  "
+            models_list += f"{prefix}`{model_id}`\n"
+        models_list += "\n"
+
+    models_list += f"🔧 Текущая модель: `{current_model}`"
+    models_list += "\n\nИспользуй /model <название> для смены модели"
+
+    bot.reply_to(message, models_list, parse_mode="Markdown")
+    app_logger.info(f"Command /models: user={message.from_user.username}, chat_id={message.chat.id}")
     if not is_authorized(message):
         return
 
@@ -176,6 +220,7 @@ def set_model(message):
         f"✅ Модель изменена на: `{model_name}`",
         parse_mode="Markdown",
     )
+    app_logger.info(f"Model changed: user={message.from_user.username}, chat_id={message.chat.id}, model={model_name}")
 
 
 @bot.message_handler(commands=["image"])
@@ -187,17 +232,22 @@ def image(message):
         bot.reply_to(message, "Введите запрос после команды /image")
         return
 
+    app_logger.info(f"Image generation request: user={message.from_user.username}, chat_id={message.chat.id}, prompt='{prompt[:100]}...'")
+
     try:
         response = client.images.generate(
             prompt=prompt, n=1, size="1024x1024", model="dall-e-3"
         )
-    except:
+        image_url = response.data[0].url
+        app_logger.info(f"Image generated: user={message.from_user.username}, chat_id={message.chat.id}, url={image_url}")
+    except Exception as e:
+        app_logger.error(f"Image generation failed: user={message.from_user.username}, chat_id={message.chat.id}, error={str(e)}")
         bot.reply_to(message, "Произошла ошибка, попробуйте позже!")
         return
 
     bot.send_photo(
         message.chat.id,
-        response.data[0].url,
+        image_url,
         reply_to_message_id=message.message_id,
     )
 
@@ -209,9 +259,11 @@ def echo_message(message):
     try:
         text = message.text
         image_content = None
+        has_photo = False
 
         photo = message.photo
         if photo is not None:
+            has_photo = True
             photo = photo[0]
             file_info = bot.get_file(photo.file_id)
             image_content = bot.download_file(file_info.file_path)
@@ -220,7 +272,15 @@ def echo_message(message):
                 text = "Что на картинке?"
 
         ai_response = process_text_message(text, message.chat.id, image_content)
+
+        log_msg_type = "photo" if has_photo else "text"
+        app_logger.info(
+            f"Message processed: user={message.from_user.username}, chat_id={message.chat.id}, "
+            f"type={log_msg_type}, prompt_length={len(text) if text else 0}, "
+            f"response_length={len(ai_response) if ai_response else 0}"
+        )
     except Exception as e:
+        app_logger.error(f"Error processing message: user={message.from_user.username}, chat_id={message.chat.id}, error={str(e)}")
         bot.reply_to(message, f"Произошла ошибка, попробуйте позже! {e}")
         return
 
@@ -232,6 +292,8 @@ def echo_message(message):
     func=lambda msg: is_authorized(msg) and msg.voice.mime_type == "audio/ogg", content_types=["voice"]
 )
 def voice(message):
+    app_logger.info(f"Voice message received: user={message.from_user.username}, chat_id={message.chat.id}")
+
     file_info = bot.get_file(message.voice.file_id)
     downloaded_file = bot.download_file(file_info.file_path)
 
@@ -240,7 +302,10 @@ def voice(message):
             file=("file.ogg", downloaded_file, "audio/ogg"),
             model="whisper-1",
         )
-        ai_response = process_text_message(response.text, message.chat.id)
+        transcribed_text = response.text
+        app_logger.info(f"Voice transcribed: user={message.from_user.username}, chat_id={message.chat.id}, text='{transcribed_text[:100]}...'")
+
+        ai_response = process_text_message(transcribed_text, message.chat.id)
         ai_voice_response = client.audio.speech.create(
             input=ai_response,
             voice="nova",
@@ -250,6 +315,7 @@ def voice(message):
         with open("/tmp/ai_voice_response.ogg", "wb") as f:
             f.write(ai_voice_response.content)
     except Exception as e:
+        app_logger.error(f"Voice processing failed: user={message.from_user.username}, chat_id={message.chat.id}, error={str(e)}")
         bot.reply_to(message, f"Произошла ошибка, попробуйте позже! {e}")
         return
 
@@ -305,6 +371,8 @@ def process_text_message(text, chat_id, image_content=None) -> str:
     else:
         model = get_user_model(chat_id)
 
+    app_logger.info(f"Processing message: chat_id={chat_id}, model={model}, has_image={image_content is not None}, text='{text[:200]}...'")
+
     max_tokens = None
 
     # read current chat history
@@ -343,6 +411,7 @@ def process_text_message(text, chat_id, image_content=None) -> str:
             model=model, messages=history, max_tokens=max_tokens
         )
     except Exception as e:
+        app_logger.error(f"API error: chat_id={chat_id}, model={model}, error={str(e)}")
         if type(e).__name__ == "BadRequestError":
             clear_history_for_chat(chat_id)
             return process_text_message(text, chat_id)
@@ -351,6 +420,11 @@ def process_text_message(text, chat_id, image_content=None) -> str:
 
     ai_response = chat_completion.choices[0].message.content
     history_text_only.append({"role": "assistant", "content": ai_response})
+
+    app_logger.info(
+        f"AI response: chat_id={chat_id}, model={model}, "
+        f"response_length={len(ai_response)}, response_preview='{ai_response[:200]}...'"
+    )
 
     # save current chat history
     s3client.put_object(
