@@ -1,0 +1,4 @@
+openai==2.16.0
+pyTelegramBotAPI==4.30.0
+boto3
+python-dotenv

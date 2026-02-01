@@ -1,0 +1,49 @@
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # Web Console
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  minio-setup:
+    image: minio/mc:latest
+    container_name: minio-setup
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - S3_BUCKET=${S3_BUCKET}
+      - S3_KEY_ID=${S3_KEY_ID}
+      - S3_KEY_SECRET=${S3_KEY_SECRET}
+    entrypoint: >
+      /bin/sh -c "
+      sleep 3 &&
+      /usr/bin/mc alias set myminio http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
+      /usr/bin/mc mb myminio/$$S3_BUCKET --ignore-existing &&
+      /usr/bin/mc admin user add myminio $$S3_KEY_ID $$S3_KEY_SECRET &&
+      /usr/bin/mc admin policy attach myminio readwrite --user $$S3_KEY_ID &&
+      echo '=== Setup Complete ===' &&
+      echo 'Bucket: $$S3_BUCKET' &&
+      echo 'Access Key: $$S3_KEY_ID' &&
+      echo 'Secret Key: $$S3_KEY_SECRET'
+      "
+    restart: "no"
+
+volumes:
+  minio_data:
+    driver: local
