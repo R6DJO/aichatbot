@@ -13,11 +13,10 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 # Configure MCP logger (stdout only for Docker)
+# Note: logging.basicConfig() in core.telegram already configures root logger
+# so we just get the logger without adding extra handlers (to avoid duplicate logs)
 mcp_logger = logging.getLogger("mcp")
 mcp_logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-mcp_logger.addHandler(handler)
 
 
 @dataclass
