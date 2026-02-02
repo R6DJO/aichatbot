@@ -348,9 +348,9 @@ def register_user(username, chat_id):
             f"👤 Username: `@{username}`\n"
             f"💬 Chat ID: `{chat_id}`\n"
             f"📅 Дата: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
-            f"Для одобрения: `/approve {escape_markdown_v2(username)}`\n"
-            f"Для отказа: `/deny {escape_markdown_v2(username)}`",
-            parse_mode="MarkdownV2",
+            f"Для одобрения: `/approve {username}`\n"
+            f"Для отказа: `/deny {username}`",
+            parse_mode="Markdown",
         )
     except Exception as e:
         app_logger.error(f"Error notifying admin: {e}")
@@ -522,39 +522,35 @@ def send_welcome(message):
         if not username or not validate_username(username):
             bot.reply_to(
                 message,
-                "❌ *Неверный формат username*\\.\n\n"
-                "Требования\\:\n"
-                "• Длина 5\\-32 символа\n"
+                "❌ Неверный формат username.\n\n"
+                "Требования:\n"
+                "• Длина 5-32 символа\n"
                 "• Только латинские буквы, цифры и подчеркивание\n"
                 "• Должен начинаться с буквы или подчеркивания\n\n"
-                "Пожалуйста, установите корректный username в настройках Telegram\\.",
-                parse_mode="MarkdownV2"
+                "Пожалуйста, установите корректный username в настройках Telegram."
             )
             return
 
         if status == "pending":
             bot.reply_to(
                 message,
-                "⏳ *Ожидание подтверждения*\n\n"
+                "⏳ Ожидание подтверждения\n\n"
                 "Ваша заявка на использование бота отправлена администратору. "
-                "Ожидайте ответа.",
-                parse_mode="MarkdownV2",
+                "Ожидайте ответа."
             )
             return
         elif status == "denied":
             bot.reply_to(
                 message,
-                "❌ *Доступ запрещен*\n\n"
-                "Администратор отклонил вашу заявку на использование бота.",
-                parse_mode="MarkdownV2",
+                "❌ Доступ запрещен\n\n"
+                "Администратор отклонил вашу заявку на использование бота."
             )
             return
         else:
             bot.reply_to(
                 message,
-                "❌ У вас нет доступа к этому боту\\.\n\n"
-                "Убедитесь что у вас установлен username в Telegram\\.",
-                parse_mode="MarkdownV2"
+                "❌ У вас нет доступа к этому боту.\n\n"
+                "Убедитесь что у вас установлен username в Telegram."
             )
             return
 
@@ -563,49 +559,49 @@ def send_welcome(message):
     # Для админа показываем расширенную справку
     if is_admin(message):
         help_text = (
-            "*🤖 AI Bot \\- Панель администратора*\n\n"
-            "👤 *Управление пользователями\\:*\n"
-            "`/users` \\- список всех пользователей\n"
-            "`/approve <username>` \\- разрешить доступ\n"
-            "`/deny <username>` \\- запретить доступ\n\n"
-            "⚙️ *Другие команды\\:*\n"
-            "`/models` \\- список AI моделей\n"
-            "`/model <name>` \\- выбрать модель\n"
-            "`/new` \\- очистить историю чата\n"
-            "`/image <prompt>` \\- генерация изображения\n\n"
-            "🔧 *MCP Tools\\:*\n"
-            "`/tools` \\- список доступных инструментов\n"
-            "`/mcp on/off` \\- включить/выключить инструменты\n"
-            "`/mcpstatus` \\- статус MCP серверов"
+            "*🤖 AI Bot - Панель администратора*\n\n"
+            "👤 *Управление пользователями:*\n"
+            "`/users` - список всех пользователей\n"
+            "`/approve <username>` - разрешить доступ\n"
+            "`/deny <username>` - запретить доступ\n\n"
+            "⚙️ *Другие команды:*\n"
+            "`/models` - список AI моделей\n"
+            "`/model <name>` - выбрать модель\n"
+            "`/new` - очистить историю чата\n"
+            "`/image <prompt>` - генерация изображения\n\n"
+            "🔧 *MCP Tools:*\n"
+            "`/tools` - список доступных инструментов\n"
+            "`/mcp on/off` - включить/выключить инструменты\n"
+            "`/mcpstatus` - статус MCP серверов"
         )
     else:
         help_text = (
-            "*🤖 Привет\\! Я AI бот\\. Спроси меня что\\-нибудь\\!*\n\n"
-            "⚙️ *Доступные команды\\:*\n"
-            "`/models` \\- список AI моделей\n"
-            "`/model <name>` \\- выбрать модель\n"
-            "`/new` \\- очистить истории чата\n"
-            "`/image <prompt>` \\- генерация изображения\n\n"
-            "🔧 *MCP Tools\\:*\n"
-            "`/tools` \\- список доступных инструментов\n"
-            "`/mcp on/off` \\- включить/выключить инструменты"
+            "*🤖 Привет! Я AI бот. Спроси меня что-нибудь!*\n\n"
+            "⚙️ *Доступные команды:*\n"
+            "`/models` - список AI моделей\n"
+            "`/model <name>` - выбрать модель\n"
+            "`/new` - очистить истории чата\n"
+            "`/image <prompt>` - генерация изображения\n\n"
+            "🔧 *MCP Tools:*\n"
+            "`/tools` - список доступных инструментов\n"
+            "`/mcp on/off` - включить/выключить инструменты"
         )
 
-    bot.reply_to(message, help_text, parse_mode="MarkdownV2")
+    bot.reply_to(message, help_text, parse_mode="Markdown")
 
 
 @bot.message_handler(commands=["users"])
 def list_users(message):
     """Список всех пользователей (только для админа)"""
     if not is_admin(message):
-        bot.reply_to(message, "❌ Эта команда доступна только администратору\\.", parse_mode="MarkdownV2")
+        bot.reply_to(message, "❌ Эта команда доступна только администратору.")
         return
 
     users_db = get_users_db()
     users = users_db.get("users", {})
 
     if not users:
-        bot.reply_to(message, "👥 Пользователей пока нет\\.", parse_mode="MarkdownV2")
+        bot.reply_to(message, "👥 Пользователей пока нет.")
         return
 
     # Группируем по статусам
@@ -620,15 +616,15 @@ def list_users(message):
     for status in ["pending", "approved", "denied"]:
         status_users = [u for u in users.values() if u["status"] == status]
         if status_users:
-            text += f"{status_emoji[status]} *{status.title()}* \\({len(status_users)}\\):\n"
+            text += f"{status_emoji[status]} *{status.title()}* ({len(status_users)}):\n"
             for user in status_users:
                 username = user.get("username", "unknown")
                 chat_id = user.get("chat_id", "unknown")
                 first_seen = user.get("first_seen", "unknown")[:10]
-                text += f"  • `@{escape_markdown_v2(username)}` — `{escape_markdown_v2(str(chat_id))}` — {escape_markdown_v2(first_seen)}\n"
+                text += f"  • `@{username}` — `{chat_id}` — {first_seen}\n"
             text += "\n"
 
-    bot.reply_to(message, text, parse_mode="MarkdownV2")
+    bot.reply_to(message, text, parse_mode="Markdown")
     app_logger.info(f"Command /users: admin={message.from_user.username}, total_users={len(users)}")
 
 
@@ -645,19 +641,19 @@ def update_user_access(message, username_arg: str, new_status: str, command_name
     username = username_arg.strip().lstrip("@")
 
     if not username:
-        bot.reply_to(message, "❌ Некорректное имя пользователя", parse_mode="MarkdownV2")
+        bot.reply_to(message, "❌ Некорректное имя пользователя")
         return
 
     # Сообщения для разных статусов
     status_messages = {
         "approved": {
-            "user": "✅ *Доступ разрешён\\!*\n\nАдминистратор одобрил вашу заявку\\. Теперь вы можете использовать бота\\.",
-            "admin": f"✅ Пользователь `@{escape_markdown_v2(username)}` одобрен\\.",
+            "user": "✅ Доступ разрешён!\n\nАдминистратор одобрил вашу заявку. Теперь вы можете использовать бота.",
+            "admin": f"✅ Пользователь @{username} одобрен.",
             "log": "approved"
         },
         "denied": {
-            "user": "❌ *Доступ запрещён\\!*\n\nАдминистратор отклонил вашу заявку\\.",
-            "admin": f"❌ Пользователю `@{escape_markdown_v2(username)}` запрещён доступ\\.",
+            "user": "❌ Доступ запрещён!\n\nАдминистратор отклонил вашу заявку.",
+            "admin": f"❌ Пользователю @{username} запрещён доступ.",
             "log": "denied"
         }
     }
@@ -675,20 +671,16 @@ def update_user_access(message, username_arg: str, new_status: str, command_name
         if user:
             chat_id = user.get("chat_id")
             try:
-                bot.send_message(chat_id, messages["user"], parse_mode="MarkdownV2")
+                bot.send_message(chat_id, messages["user"])
             except Exception as e:
                 app_logger.warning(f"Failed to notify user {username}: {e}")
 
         # Уведомляем админа
-        bot.reply_to(message, messages["admin"], parse_mode="MarkdownV2")
+        bot.reply_to(message, messages["admin"])
         app_logger.info(f"User {messages['log']}: {username} by admin {message.from_user.username}")
     else:
         # Пользователь не найден
-        bot.reply_to(
-            message,
-            f"❌ Пользователь `@{escape_markdown_v2(username)}` не найден\\.",
-            parse_mode="MarkdownV2",
-        )
+        bot.reply_to(message, f"❌ Пользователь @{username} не найден.")
 
 
 @bot.message_handler(commands=["approve"])
@@ -699,7 +691,7 @@ def approve_user(message):
 
     args = message.text.split("/approve", 1)[1].strip()
     if not args:
-        bot.reply_to(message, "Используйте\\: `/approve <username>`", parse_mode="MarkdownV2")
+        bot.reply_to(message, "Используйте: `/approve <username>`", parse_mode="Markdown")
         return
 
     update_user_access(message, args, "approved", "approve")
@@ -713,7 +705,7 @@ def deny_user(message):
 
     args = message.text.split("/deny", 1)[1].strip()
     if not args:
-        bot.reply_to(message, "Используйте\\: `/deny <username>`", parse_mode="MarkdownV2")
+        bot.reply_to(message, "Используйте: `/deny <username>`", parse_mode="Markdown")
         return
 
     update_user_access(message, args, "denied", "deny")
@@ -725,7 +717,7 @@ def clear_history(message):
         return
     clear_history_for_chat(message.chat.id)
     app_logger.info(f"History cleared: user={message.from_user.username}, chat_id={message.chat.id}")
-    bot.reply_to(message, "История чата очищена!")
+    bot.reply_to(message, "✅ История чата очищена!")
 
 
 @bot.message_handler(commands=["models"])
@@ -796,14 +788,14 @@ def list_tools(message):
         return
 
     if not mcp_manager:
-        bot.reply_to(message, "🔧 MCP tools are not enabled\\.", parse_mode="MarkdownV2")
+        bot.reply_to(message, "🔧 MCP tools are not enabled.")
         return
 
     try:
         tools = run_async(mcp_manager.get_all_tools())
 
         if not tools:
-            bot.reply_to(message, "🔧 No MCP tools available\\.", parse_mode="MarkdownV2")
+            bot.reply_to(message, "🔧 No MCP tools available.")
             return
 
         # Format tool list grouped by server
@@ -817,17 +809,17 @@ def list_tools(message):
             tools_by_server[server_name].append(tool["function"])
 
         for server, server_tools in sorted(tools_by_server.items()):
-            tools_text += f"📦 *{escape_markdown_v2(server)}* \\({len(server_tools)} tools\\)\n"
+            tools_text += f"📦 *{server}* ({len(server_tools)} tools)\n"
             for tool_func in server_tools:
                 name = tool_func["name"]
                 # Just show tool name, no description (to keep message short)
-                tools_text += f"  \\- `{escape_markdown_v2(name)}`\n"
+                tools_text += f"  - `{name}`\n"
             tools_text += "\n"
 
         mcp_status = "✅ enabled" if should_use_mcp_for_user(message.chat.id) else "❌ disabled"
-        tools_text += f"💡 MCP tools for you\\: {mcp_status}\n"
-        tools_text += "Use `/mcp on` or `/mcp off` to toggle\\.\n"
-        tools_text += f"\nTotal\\: {len(tools)} tools available\\."
+        tools_text += f"💡 MCP tools for you: {mcp_status}\n"
+        tools_text += "Use `/mcp on` or `/mcp off` to toggle.\n"
+        tools_text += f"\nTotal: {len(tools)} tools available."
 
         # Check if message is too long (Telegram limit is 4096 chars)
         if len(tools_text) > 4000:
@@ -836,9 +828,9 @@ def list_tools(message):
             current_msg = "🔧 *Available MCP Tools:*\n\n"
 
             for server, server_tools in sorted(tools_by_server.items()):
-                server_section = f"📦 *{escape_markdown_v2(server)}* \\({len(server_tools)} tools\\)\n"
+                server_section = f"📦 *{server}* ({len(server_tools)} tools)\n"
                 for tool_func in server_tools:
-                    server_section += f"  \\- `{escape_markdown_v2(tool_func['name'])}`\n"
+                    server_section += f"  - `{tool_func['name']}`\n"
                 server_section += "\n"
 
                 if len(current_msg) + len(server_section) > 3500:
@@ -848,20 +840,20 @@ def list_tools(message):
                 current_msg += server_section
 
             if current_msg:
-                current_msg += f"\n💡 MCP tools\\: {mcp_status}\n"
-                current_msg += f"Total\\: {len(tools)} tools"
+                current_msg += f"\n💡 MCP tools: {mcp_status}\n"
+                current_msg += f"Total: {len(tools)} tools"
                 messages.append(current_msg)
 
             # Send multiple messages
             for msg in messages:
-                bot.send_message(message.chat.id, msg, parse_mode="MarkdownV2")
+                bot.send_message(message.chat.id, msg, parse_mode="Markdown")
         else:
-            bot.reply_to(message, tools_text, parse_mode="MarkdownV2")
+            bot.reply_to(message, tools_text, parse_mode="Markdown")
         app_logger.info(f"/tools: user={message.from_user.username}, count={len(tools)}")
 
     except Exception as e:
         app_logger.error(f"Error listing tools: {e}")
-        bot.reply_to(message, f"❌ Error listing tools: {escape_markdown_v2(str(e))}", parse_mode="MarkdownV2")
+        bot.reply_to(message, f"❌ Error listing tools: {str(e)}")
 
 
 @bot.message_handler(commands=["mcp"])
@@ -870,39 +862,39 @@ def toggle_mcp(message):
         return
 
     if not mcp_manager:
-        bot.reply_to(message, "🔧 MCP tools are not available\\.", parse_mode="MarkdownV2")
+        bot.reply_to(message, "🔧 MCP tools are not available.")
         return
 
     args = message.text.split("/mcp")[1].strip().lower()
 
     if args == "on":
         set_mcp_for_user(message.chat.id, True)
-        bot.reply_to(message, "✅ MCP tools enabled\\.", parse_mode="MarkdownV2")
+        bot.reply_to(message, "✅ MCP tools enabled.")
         app_logger.info(f"MCP enabled: user={message.from_user.username}")
     elif args == "off":
         set_mcp_for_user(message.chat.id, False)
-        bot.reply_to(message, "❌ MCP tools disabled\\.", parse_mode="MarkdownV2")
+        bot.reply_to(message, "❌ MCP tools disabled.")
         app_logger.info(f"MCP disabled: user={message.from_user.username}")
     else:
         current_status = "enabled" if should_use_mcp_for_user(message.chat.id) else "disabled"
         bot.reply_to(
             message,
-            f"🔧 *MCP Tools\\:* {escape_markdown_v2(current_status)}\n\n"
-            f"`/mcp on` \\- enable tools\n"
-            f"`/mcp off` \\- disable tools\n"
-            f"`/tools` \\- list available tools",
-            parse_mode="MarkdownV2"
+            f"🔧 *MCP Tools:* {current_status}\n\n"
+            f"`/mcp on` - enable tools\n"
+            f"`/mcp off` - disable tools\n"
+            f"`/tools` - list available tools",
+            parse_mode="Markdown"
         )
 
 
 @bot.message_handler(commands=["mcpstatus"])
 def mcp_status(message):
     if not is_admin(message):
-        bot.reply_to(message, "❌ Admin only\\.", parse_mode="MarkdownV2")
+        bot.reply_to(message, "❌ Admin only.")
         return
 
     if not mcp_manager:
-        bot.reply_to(message, "🔧 MCP Manager not initialized\\.", parse_mode="MarkdownV2")
+        bot.reply_to(message, "🔧 MCP Manager not initialized.")
         return
 
     try:
@@ -911,14 +903,14 @@ def mcp_status(message):
         status_text = "🔧 *MCP Server Status:*\n\n"
         for server_name, server_status in status.items():
             emoji = "✅" if server_status == "connected" else "❌"
-            status_text += f"{emoji} *{escape_markdown_v2(server_name)}*: `{escape_markdown_v2(server_status)}`\n"
+            status_text += f"{emoji} *{server_name}*: `{server_status}`\n"
 
-        bot.reply_to(message, status_text, parse_mode="MarkdownV2")
+        bot.reply_to(message, status_text, parse_mode="Markdown")
         app_logger.info(f"/mcpstatus: admin={message.from_user.username}")
 
     except Exception as e:
         app_logger.error(f"Error getting MCP status: {e}")
-        bot.reply_to(message, f"❌ Error: {escape_markdown_v2(str(e))}", parse_mode="MarkdownV2")
+        bot.reply_to(message, f"❌ Error: {str(e)}")
 
 
 @bot.message_handler(commands=["image"])
