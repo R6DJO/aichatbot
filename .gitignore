@@ -29,3 +29,16 @@ Thumbs.db
 # Logs
 logs/
 *.log
+
+# MCP
+mcp.json
+mcp_workspace/
+
+# Test scripts (temporary)
+test_mcp.sh
+test_mcp_simple.py
+add_mcp_server.py
+*_old.py
+
+# AI files
+CLAUDE.md

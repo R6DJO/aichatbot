@@ -6,7 +6,8 @@ services:
     env_file:
       - .env
     volumes:
-      - ./logs:/app/logs
+      - ./mcp_workspace:/app/mcp_workspace
+      - ./mcp.json:/app/mcp.json:ro
     depends_on:
       minio:
         condition: service_healthy
@@ -51,10 +52,9 @@ services:
       /usr/bin/mc mb myminio/$$S3_BUCKET --ignore-existing &&
       /usr/bin/mc admin user add myminio $$S3_KEY_ID $$S3_KEY_SECRET &&
       /usr/bin/mc admin policy attach myminio readwrite --user $$S3_KEY_ID &&
-      echo '=== Setup Complete ===' &&
-      echo 'Bucket: $$S3_BUCKET' &&
-      echo 'Access Key: $$S3_KEY_ID' &&
-      echo 'Secret Key: $$S3_KEY_SECRET'
+      echo '=== MinIO Setup Complete ===' &&
+      echo 'Bucket created: $$S3_BUCKET' &&
+      echo 'User created: $$S3_KEY_ID'
       "
     restart: "no"
 

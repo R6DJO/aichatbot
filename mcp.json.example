@@ -1,0 +1,93 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/home/r6djo/dev/aichatbot/mcp_workspace"
+      ],
+      "enabled": true,
+      "description": "Работа с файлами и папками"
+    },
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_TOKEN": "ghp_your_token_here"
+      },
+      "enabled": false,
+      "description": "Управление GitHub репозиториями, issues, PR"
+    },
+    "postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://user:password@localhost:5432/dbname"
+      ],
+      "enabled": false,
+      "description": "Работа с PostgreSQL базой данных"
+    },
+    "sqlite": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sqlite",
+        "--db-path",
+        "/path/to/database.db"
+      ],
+      "enabled": false,
+      "description": "Работа с SQLite базой данных"
+    },
+    "brave-search": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-brave-search"
+      ],
+      "env": {
+        "BRAVE_API_KEY": "your_brave_api_key"
+      },
+      "enabled": false,
+      "description": "Поиск в интернете через Brave Search API"
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-puppeteer"
+      ],
+      "enabled": false,
+      "description": "Автоматизация браузера, скриншоты веб-страниц"
+    },
+    "slack": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-slack"
+      ],
+      "env": {
+        "SLACK_BOT_TOKEN": "xoxb-your-token",
+        "SLACK_TEAM_ID": "T01234567"
+      },
+      "enabled": false,
+      "description": "Отправка сообщений в Slack"
+    },
+    "google-maps": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-google-maps"
+      ],
+      "env": {
+        "GOOGLE_MAPS_API_KEY": "your_api_key"
+      },
+      "enabled": false,
+      "description": "Работа с Google Maps - поиск мест, маршруты"
+    }
+  }
+}

@@ -1,4 +1,15 @@
-openai==2.16.0
-pyTelegramBotAPI==4.30.0
-boto3
-python-dotenv
+# AI and API
+openai
+
+# Telegram Bot
+pyTelegramBotAPI==4.24.0
+
+# AWS S3
+boto3==1.35.70
+botocore==1.35.70
+
+# Environment variables
+python-dotenv==1.0.1
+
+# Model Context Protocol
+mcp==1.1.0
