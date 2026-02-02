@@ -13,6 +13,15 @@ from ai.processor import process_text_message
 
 @bot.message_handler(func=lambda message: is_authorized(message), content_types=["text", "photo"])
 def echo_message(message):
+    # Без username не обрабатываем
+    if not message.from_user.username:
+        app_logger.warning(f"Message denied: missing username, chat_id={message.chat.id}")
+        bot.reply_to(
+            message,
+            "❌ Установите username в Telegram, чтобы использовать бота.\n\nОткройте настройки Telegram → Изменить имя пользователя",
+        )
+        return
+
     # Check rate limit (skip for admin)
     if not is_admin(message):
         allowed, wait_time = check_rate_limit(message.chat.id)

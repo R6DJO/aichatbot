@@ -4,7 +4,7 @@ AI message processing with MCP tool support.
 
 import json
 import base64
-from config import MAX_HISTORY_LENGTH, MAX_VISION_TOKENS, MCP_MAX_ITERATIONS
+from config import MAX_HISTORY_LENGTH, MAX_VISION_TOKENS, MCP_MAX_ITERATIONS, API_MAX_RETRIES
 from core.openai_client import client
 from core.async_helpers import run_async
 from core.telegram import app_logger
@@ -92,8 +92,28 @@ def process_text_message(text, chat_id, image_content=None):
     except Exception as e:
         app_logger.error(f"API error: chat_id={chat_id}, model={model}, error={str(e)}")
         if type(e).__name__ == "BadRequestError":
-            clear_chat_history(chat_id)
-            return process_text_message(text, chat_id)
+            for attempt in range(API_MAX_RETRIES):
+                try:
+                    app_logger.warning(
+                        f"BadRequestError, clearing history and retrying: attempt={attempt + 1}/{API_MAX_RETRIES}, chat_id={chat_id}"
+                    )
+                    clear_chat_history(chat_id)
+                    chat_completion = client.chat.completions.create(
+                        model=model,
+                        messages=[system_message, {"role": "user", "content": text}],
+                        max_tokens=max_tokens,
+                        tools=tools_param,
+                        tool_choice="auto" if tools_param else None
+                    )
+                    break
+                except Exception as retry_exc:
+                    if attempt == API_MAX_RETRIES - 1:
+                        app_logger.error(
+                            f"Retries exhausted for BadRequestError: chat_id={chat_id}, error={retry_exc}"
+                        )
+                        return "Произошла ошибка при обработке запроса. Попробуйте позже."
+            else:
+                return "Произошла ошибка при обработке запроса. Попробуйте позже."
         else:
             raise e
 

@@ -13,11 +13,10 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 # Configure MCP logger (stdout only for Docker)
+# Note: logging.basicConfig() in core.telegram already configures root logger
+# so we just get the logger without adding extra handlers (to avoid duplicate logs)
 mcp_logger = logging.getLogger("mcp")
 mcp_logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-mcp_logger.addHandler(handler)
 
 
 @dataclass
@@ -124,7 +123,7 @@ class MCPServerManager:
                         mcp_logger.info(f"Executing {tool_name} on {config.name}, args={json.dumps(arguments)[:200]}")
 
                         # Execute the tool with timeout
-                        from bot import MCP_TOOL_TIMEOUT_SECONDS
+                        from config import MCP_TOOL_TIMEOUT_SECONDS
                         result = await asyncio.wait_for(
                             session.call_tool(tool_name, arguments),
                             timeout=MCP_TOOL_TIMEOUT_SECONDS
@@ -150,7 +149,8 @@ class MCPServerManager:
                     mcp_logger.error(error_msg)
                     raise Exception(error_msg)
                 except Exception as e:
-                    mcp_logger.warning(f"Cached server failed, falling back to search: {e}")
+                    # Use exception() to log full traceback
+                    mcp_logger.exception(f"Cached server failed, falling back to search: {e}")
                     # Cache was wrong, remove this entry and fall through to search
                     self._tool_cache.pop(tool_name, None)
 
@@ -171,7 +171,7 @@ class MCPServerManager:
                         mcp_logger.info(f"Executing {tool_name} on {config.name}, args={json.dumps(arguments)[:200]}")
 
                         # Execute the tool with timeout
-                        from bot import MCP_TOOL_TIMEOUT_SECONDS
+                        from config import MCP_TOOL_TIMEOUT_SECONDS
                         result = await asyncio.wait_for(
                             session.call_tool(tool_name, arguments),
                             timeout=MCP_TOOL_TIMEOUT_SECONDS
@@ -193,12 +193,13 @@ class MCPServerManager:
                         return str(result)
 
             except asyncio.TimeoutError:
-                from bot import MCP_TOOL_TIMEOUT_SECONDS
+                from config import MCP_TOOL_TIMEOUT_SECONDS
                 error_msg = f"Tool '{tool_name}' execution timed out after {MCP_TOOL_TIMEOUT_SECONDS} seconds"
                 mcp_logger.error(error_msg)
                 raise Exception(error_msg)
             except Exception as e:
-                mcp_logger.error(f"Error checking {config.name} for tool {tool_name}: {e}")
+                # Use exception() to log full traceback
+                mcp_logger.exception(f"Error checking {config.name} for tool {tool_name}: {e}")
                 continue
 
         raise Exception(f"Tool '{tool_name}' not found in any connected server")
