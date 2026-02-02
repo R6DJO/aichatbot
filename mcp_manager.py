@@ -123,7 +123,7 @@ class MCPServerManager:
                         mcp_logger.info(f"Executing {tool_name} on {config.name}, args={json.dumps(arguments)[:200]}")
 
                         # Execute the tool with timeout
-                        from bot import MCP_TOOL_TIMEOUT_SECONDS
+                        from config import MCP_TOOL_TIMEOUT_SECONDS
                         result = await asyncio.wait_for(
                             session.call_tool(tool_name, arguments),
                             timeout=MCP_TOOL_TIMEOUT_SECONDS
@@ -171,7 +171,7 @@ class MCPServerManager:
                         mcp_logger.info(f"Executing {tool_name} on {config.name}, args={json.dumps(arguments)[:200]}")
 
                         # Execute the tool with timeout
-                        from bot import MCP_TOOL_TIMEOUT_SECONDS
+                        from config import MCP_TOOL_TIMEOUT_SECONDS
                         result = await asyncio.wait_for(
                             session.call_tool(tool_name, arguments),
                             timeout=MCP_TOOL_TIMEOUT_SECONDS
@@ -193,7 +193,7 @@ class MCPServerManager:
                         return str(result)
 
             except asyncio.TimeoutError:
-                from bot import MCP_TOOL_TIMEOUT_SECONDS
+                from config import MCP_TOOL_TIMEOUT_SECONDS
                 error_msg = f"Tool '{tool_name}' execution timed out after {MCP_TOOL_TIMEOUT_SECONDS} seconds"
                 mcp_logger.error(error_msg)
                 raise Exception(error_msg)
