@@ -55,7 +55,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Отредактируйте `.env`:
+Отредактируйте `.env` (все значения обязательны, если не указано иное):
 
 ```bash
 # Telegram Bot
@@ -63,6 +63,7 @@ TG_BOT_TOKEN=your_telegram_bot_token
 
 # Администратор бота
 ADMIN_USERNAME=R6DJO
+# Обязательно целое число (chat_id)
 ADMIN_CHAT_ID=1212054
 
 # OpenAI API
@@ -81,6 +82,10 @@ MINIO_ENDPOINT=http://localhost:9000
 MCP_ENABLED=true
 MCP_FILESYSTEM_ENABLED=true
 ```
+
+> Минимально необходимые переменные: `TG_BOT_TOKEN`, `ADMIN_USERNAME`, `ADMIN_CHAT_ID`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `S3_KEY_ID`, `S3_KEY_SECRET`, `S3_BUCKET`.
+
+> Rate limiting хранит состояние в памяти (один процесс). Для multi-worker деплоя используйте Redis/другое общее хранилище и TTL-ключи.
 
 ### 3. Настройка MCP (опционально)
 

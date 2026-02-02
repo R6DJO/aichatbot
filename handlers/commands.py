@@ -97,9 +97,13 @@ def send_welcome(message):
 def clear_history(message):
     if not is_authorized(message):
         return
-    clear_chat_history(message.chat.id)
-    app_logger.info(f"History cleared: user={message.from_user.username}, chat_id={message.chat.id}")
-    bot.reply_to(message, "✅ История чата очищена!")
+    success = clear_chat_history(message.chat.id)
+    if success:
+        app_logger.info(f"History cleared: user={message.from_user.username}, chat_id={message.chat.id}")
+        bot.reply_to(message, "✅ История чата очищена!")
+    else:
+        app_logger.error(f"Failed to clear history: user={message.from_user.username}, chat_id={message.chat.id}")
+        bot.reply_to(message, "❌ Не удалось очистить историю. Попробуйте позже.")
 
 
 @bot.message_handler(commands=["models"])

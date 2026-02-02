@@ -6,7 +6,8 @@ import time
 from config import RATE_LIMIT_REQUESTS, RATE_LIMIT_WINDOW
 from core.telegram import app_logger
 
-# Global rate limit data
+# Global rate limit data (in-memory; single-process only)
+# Для multi-worker используйте общее хранилище (Redis) и TTL ключи.
 rate_limit_data = {}  # {chat_id: [timestamp1, timestamp2, ...]}
 
 
