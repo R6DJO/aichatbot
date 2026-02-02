@@ -3,7 +3,8 @@ FROM python:3.11-alpine
 WORKDIR /app
 
 # Install Node.js and npm for MCP servers
-RUN apk add --no-cache nodejs npm ca-certificates
+RUN apk add --no-cache nodejs npm ca-certificates && \
+    update-ca-certificates 2>/dev/null
 
 # Копируем requirements и устанавливаем зависимости
 COPY requirements.txt .
