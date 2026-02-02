@@ -17,9 +17,17 @@ RUN addgroup -S botuser && adduser -S botuser -G botuser
 RUN mkdir -p /app/mcp_workspace && \
     chown -R botuser:botuser /app/mcp_workspace
 
-# Копируем код бота
+# Копируем код бота (модульная структура)
 COPY --chown=botuser:botuser bot.py .
+COPY --chown=botuser:botuser config.py .
 COPY --chown=botuser:botuser mcp_manager.py .
+COPY --chown=botuser:botuser core/ ./core/
+COPY --chown=botuser:botuser storage/ ./storage/
+COPY --chown=botuser:botuser auth/ ./auth/
+COPY --chown=botuser:botuser models/ ./models/
+COPY --chown=botuser:botuser ai/ ./ai/
+COPY --chown=botuser:botuser handlers/ ./handlers/
+COPY --chown=botuser:botuser utils/ ./utils/
 
 # Переключаемся на непривилегированного пользователя
 USER botuser
