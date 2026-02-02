@@ -149,7 +149,8 @@ class MCPServerManager:
                     mcp_logger.error(error_msg)
                     raise Exception(error_msg)
                 except Exception as e:
-                    mcp_logger.warning(f"Cached server failed, falling back to search: {e}")
+                    # Use exception() to log full traceback
+                    mcp_logger.exception(f"Cached server failed, falling back to search: {e}")
                     # Cache was wrong, remove this entry and fall through to search
                     self._tool_cache.pop(tool_name, None)
 
@@ -197,7 +198,8 @@ class MCPServerManager:
                 mcp_logger.error(error_msg)
                 raise Exception(error_msg)
             except Exception as e:
-                mcp_logger.error(f"Error checking {config.name} for tool {tool_name}: {e}")
+                # Use exception() to log full traceback
+                mcp_logger.exception(f"Error checking {config.name} for tool {tool_name}: {e}")
                 continue
 
         raise Exception(f"Tool '{tool_name}' not found in any connected server")

@@ -52,7 +52,7 @@ MAX_MESSAGE_LENGTH = 4000  # Telegram limit is 4096, use safe margin
 MAX_VISION_TOKENS = 4000  # Max tokens for vision model responses
 
 # MCP configuration
-MCP_TOOL_TIMEOUT_SECONDS = 30  # Timeout for tool execution
+MCP_TOOL_TIMEOUT_SECONDS = 60  # Timeout for tool execution
 MCP_MAX_ITERATIONS = 5  # Maximum tool call iterations to prevent loops
 
 # Typing indicator
