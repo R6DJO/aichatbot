@@ -21,10 +21,10 @@ from collections import defaultdict
 load_dotenv()
 
 TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN")
-ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "R6DJO")
-ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID", "1212054"))
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME")
+ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID"))
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://api.proxyapi.ru/openai/v1")
+OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL")
 S3_KEY_ID = os.environ.get("S3_KEY_ID")
 S3_KEY_SECRET = os.environ.get("S3_KEY_SECRET")
 S3_BUCKET = os.environ.get("S3_BUCKET")
