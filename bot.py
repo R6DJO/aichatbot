@@ -479,7 +479,15 @@ def fetch_models():
     """Получить список моделей из API и сгруппировать по производителю"""
     try:
         models_url = f"{OPENAI_BASE_URL.rstrip('/')}/models"
-        response = requests.get(models_url, timeout=5)
+        headers = {}
+        if OPENAI_API_KEY:
+            headers["Authorization"] = f"Bearer {OPENAI_API_KEY}"
+
+        response = requests.get(
+            models_url,
+            headers=headers,
+            timeout=5
+        )
         response.raise_for_status()
         data = response.json()
 
