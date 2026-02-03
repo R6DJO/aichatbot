@@ -2,37 +2,28 @@
 User management (registration, status tracking).
 """
 
-import json
 from datetime import datetime
-from config import S3_BUCKET, ADMIN_CHAT_ID, ADMIN_USERNAME
-from storage.s3_client import get_s3_client
+from config import ADMIN_CHAT_ID, ADMIN_USERNAME
+from storage.base import S3Repository
 from auth.validators import validate_username
 from core.telegram import bot, app_logger
 
 
+# Users database repository
+users_db_repo = S3Repository(
+    f"{ADMIN_CHAT_ID}_users.json",
+    default_factory=lambda: {"users": {}}
+)
+
+
 def get_users_db():
     """Получить базу пользователей из S3"""
-    s3client = get_s3_client()
-    try:
-        response = s3client.get_object(
-            Bucket=S3_BUCKET, Key=f"{ADMIN_CHAT_ID}_users.json"
-        )
-        return json.loads(response["Body"].read())
-    except:
-        return {"users": {}}
+    return users_db_repo.get(ADMIN_CHAT_ID)
 
 
 def save_users_db(users_db):
     """Сохранить базу пользователей в S3"""
-    s3client = get_s3_client()
-    try:
-        s3client.put_object(
-            Bucket=S3_BUCKET,
-            Key=f"{ADMIN_CHAT_ID}_users.json",
-            Body=json.dumps(users_db, indent=2),
-        )
-    except Exception as e:
-        app_logger.error(f"Error saving users db: {e}")
+    return users_db_repo.save(ADMIN_CHAT_ID, users_db)
 
 
 def register_user(username, chat_id):

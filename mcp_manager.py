@@ -108,53 +108,39 @@ class MCPServerManager:
         import time
         start_time = time.time()
 
-        # Try to use cache first
-        server_name = None
-        if self._is_cache_valid() and tool_name in self._tool_cache:
-            server_name = self._tool_cache[tool_name]
-            mcp_logger.info(f"Using cached server '{server_name}' for tool '{tool_name}'")
+        # Try cache first
+        config = self._get_config_from_cache(tool_name)
 
-            # Find config by name
-            config = next((c for c in self.configs if c.name == server_name), None)
+        # If cache miss or failed, search all servers
+        if config is None:
+            config = await self._find_server_with_tool(tool_name)
 
-            if config:
-                try:
-                    async with self.connect_to_server(config) as session:
-                        mcp_logger.info(f"Executing {tool_name} on {config.name}, args={json.dumps(arguments)[:200]}")
+        if config is None:
+            raise Exception(f"Tool '{tool_name}' not found in any connected server")
 
-                        # Execute the tool with timeout
-                        from config import MCP_TOOL_TIMEOUT_SECONDS
-                        result = await asyncio.wait_for(
-                            session.call_tool(tool_name, arguments),
-                            timeout=MCP_TOOL_TIMEOUT_SECONDS
-                        )
+        # Execute tool (single code path - eliminates duplication)
+        return await self._execute_tool_on_server(config, tool_name, arguments, start_time)
 
-                        duration = time.time() - start_time
-                        result_str = str(result)
-                        mcp_logger.info(f"Tool executed: {tool_name}, duration={duration:.2f}s, result_size={len(result_str)} chars")
+    def _get_config_from_cache(self, tool_name: str) -> Optional[MCPServerConfig]:
+        """Try to get server config from cache"""
+        if not self._is_cache_valid() or tool_name not in self._tool_cache:
+            return None
 
-                        # Extract content from result
-                        if hasattr(result, 'content') and result.content:
-                            if len(result.content) > 0:
-                                content_item = result.content[0]
-                                if hasattr(content_item, 'text'):
-                                    return content_item.text
-                                else:
-                                    return str(content_item)
-                            return str(result.content)
-                        return str(result)
+        server_name = self._tool_cache[tool_name]
+        mcp_logger.info(f"Using cached server '{server_name}' for tool '{tool_name}'")
 
-                except asyncio.TimeoutError:
-                    error_msg = f"Tool '{tool_name}' execution timed out after 30 seconds"
-                    mcp_logger.error(error_msg)
-                    raise Exception(error_msg)
-                except Exception as e:
-                    # Use exception() to log full traceback
-                    mcp_logger.exception(f"Cached server failed, falling back to search: {e}")
-                    # Cache was wrong, remove this entry and fall through to search
-                    self._tool_cache.pop(tool_name, None)
+        # Find config by name
+        config = next((c for c in self.configs if c.name == server_name), None)
 
-        # Cache miss or cache failed - search all servers
+        # Validate config still exists
+        if config is None:
+            mcp_logger.warning(f"Cached server '{server_name}' not found in configs, cache invalidated")
+            self._tool_cache.pop(tool_name, None)
+
+        return config
+
+    async def _find_server_with_tool(self, tool_name: str) -> Optional[MCPServerConfig]:
+        """Search all servers for a tool"""
         mcp_logger.info(f"Cache miss for tool '{tool_name}', searching all servers")
 
         for config in self.configs:
@@ -167,42 +153,70 @@ class MCPServerManager:
                     if has_tool:
                         # Update cache
                         self._tool_cache[tool_name] = config.name
+                        return config
 
-                        mcp_logger.info(f"Executing {tool_name} on {config.name}, args={json.dumps(arguments)[:200]}")
-
-                        # Execute the tool with timeout
-                        from config import MCP_TOOL_TIMEOUT_SECONDS
-                        result = await asyncio.wait_for(
-                            session.call_tool(tool_name, arguments),
-                            timeout=MCP_TOOL_TIMEOUT_SECONDS
-                        )
-
-                        duration = time.time() - start_time
-                        result_str = str(result)
-                        mcp_logger.info(f"Tool executed: {tool_name}, duration={duration:.2f}s, result_size={len(result_str)} chars")
-
-                        # Extract content from result
-                        if hasattr(result, 'content') and result.content:
-                            if len(result.content) > 0:
-                                content_item = result.content[0]
-                                if hasattr(content_item, 'text'):
-                                    return content_item.text
-                                else:
-                                    return str(content_item)
-                            return str(result.content)
-                        return str(result)
-
-            except asyncio.TimeoutError:
-                from config import MCP_TOOL_TIMEOUT_SECONDS
-                error_msg = f"Tool '{tool_name}' execution timed out after {MCP_TOOL_TIMEOUT_SECONDS} seconds"
-                mcp_logger.error(error_msg)
-                raise Exception(error_msg)
             except Exception as e:
                 # Use exception() to log full traceback
                 mcp_logger.exception(f"Error checking {config.name} for tool {tool_name}: {e}")
                 continue
 
-        raise Exception(f"Tool '{tool_name}' not found in any connected server")
+        return None
+
+    async def _execute_tool_on_server(
+        self,
+        config: MCPServerConfig,
+        tool_name: str,
+        arguments: Dict,
+        start_time: float
+    ) -> Any:
+        """Execute tool on a specific server (single execution path)"""
+        from config import MCP_TOOL_TIMEOUT_SECONDS
+        import time
+
+        try:
+            async with self.connect_to_server(config) as session:
+                mcp_logger.info(
+                    f"Executing {tool_name} on {config.name}, "
+                    f"args={json.dumps(arguments)[:200]}"
+                )
+
+                # Execute the tool with timeout
+                result = await asyncio.wait_for(
+                    session.call_tool(tool_name, arguments),
+                    timeout=MCP_TOOL_TIMEOUT_SECONDS
+                )
+
+                duration = time.time() - start_time
+                result_str = str(result)
+                mcp_logger.info(
+                    f"Tool executed: {tool_name}, duration={duration:.2f}s, "
+                    f"result_size={len(result_str)} chars"
+                )
+
+                # Extract content from result
+                return self._extract_result_content(result)
+
+        except asyncio.TimeoutError:
+            error_msg = f"Tool '{tool_name}' execution timed out after {MCP_TOOL_TIMEOUT_SECONDS} seconds"
+            mcp_logger.error(error_msg)
+            raise Exception(error_msg)
+        except Exception as e:
+            # Use exception() to log full traceback
+            mcp_logger.exception(f"Error executing tool {tool_name} on {config.name}: {e}")
+            # Invalidate cache entry on failure
+            self._tool_cache.pop(tool_name, None)
+            raise
+
+    def _extract_result_content(self, result: Any) -> str:
+        """Extract text content from MCP result"""
+        if hasattr(result, 'content') and result.content:
+            if len(result.content) > 0:
+                content_item = result.content[0]
+                if hasattr(content_item, 'text'):
+                    return content_item.text
+                return str(content_item)
+            return str(result.content)
+        return str(result)
 
     def get_server_status(self) -> Dict[str, str]:
         """Get status of all configured servers"""

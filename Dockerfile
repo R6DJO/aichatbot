@@ -19,8 +19,8 @@ RUN mkdir -p /app/mcp_workspace && \
 
 # Копируем код бота (модульная структура)
 COPY --chown=botuser:botuser bot.py .
-COPY --chown=botuser:botuser config.py .
 COPY --chown=botuser:botuser mcp_manager.py .
+COPY --chown=botuser:botuser config/ ./config/
 COPY --chown=botuser:botuser core/ ./core/
 COPY --chown=botuser:botuser storage/ ./storage/
 COPY --chown=botuser:botuser auth/ ./auth/
@@ -31,6 +31,13 @@ COPY --chown=botuser:botuser utils/ ./utils/
 
 # Переключаемся на непривилегированного пользователя
 USER botuser
+
+# Set PATH to include npm global binaries
+ENV PATH="/home/botuser/.npm-global/bin:${PATH}"
+ENV NPM_CONFIG_PREFIX=/home/botuser/.npm-global
+
+# Pre-install MCP servers (optional, for faster startup)
+RUN npm install -g @modelcontextprotocol/server-brave-search
 
 # Запускаем бота
 CMD ["python", "bot.py"]

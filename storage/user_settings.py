@@ -2,35 +2,21 @@
 User settings storage operations.
 """
 
-import json
-from config import S3_BUCKET
-from storage.s3_client import get_s3_client
-from core.telegram import app_logger
+from storage.base import S3Repository
+
+
+# User settings repository: stores user preferences as dict
+user_settings_repo = S3Repository("{id}_settings.json", default_factory=dict)
 
 
 def get_user_settings(chat_id):
     """Получить настройки пользователя из S3"""
-    s3client = get_s3_client()
-    try:
-        response = s3client.get_object(
-            Bucket=S3_BUCKET, Key=f"{chat_id}_settings.json"
-        )
-        return json.loads(response["Body"].read())
-    except:
-        return {}
+    return user_settings_repo.get(str(chat_id))
 
 
 def save_user_settings(chat_id, settings):
     """Сохранить настройки пользователя в S3"""
-    s3client = get_s3_client()
-    try:
-        s3client.put_object(
-            Bucket=S3_BUCKET,
-            Key=f"{chat_id}_settings.json",
-            Body=json.dumps(settings),
-        )
-    except Exception as e:
-        app_logger.error(f"Error saving user settings: {e}")
+    return user_settings_repo.save(str(chat_id), settings)
 
 
 def get_user_model(chat_id):
