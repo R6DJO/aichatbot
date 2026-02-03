@@ -6,6 +6,7 @@ Refactored modular architecture.
 
 import os
 import json
+import signal
 import telebot
 from core.telegram import bot, app_logger
 import handlers  # Import to register all handlers
@@ -51,7 +52,29 @@ def handler(event, context):
     return {"statusCode": 200, "body": "ok"}
 
 
+# Graceful shutdown handler
+def shutdown_handler(signum, frame):
+    """Handle shutdown signals and cleanup resources"""
+    app_logger.info(f"Received shutdown signal {signum}, cleaning up...")
+
+    # Close all MCP sessions
+    if ai.processor.mcp_manager is not None:
+        try:
+            from core.async_helpers import run_async
+            run_async(ai.processor.mcp_manager.close_all_sessions())
+            app_logger.info("All MCP sessions closed")
+        except Exception as e:
+            app_logger.error(f"Error closing MCP sessions: {e}")
+
+    app_logger.info("Shutdown complete")
+    exit(0)
+
+
 # Запуск бота в режиме polling
 if __name__ == "__main__":
+    # Register signal handlers
+    signal.signal(signal.SIGINT, shutdown_handler)
+    signal.signal(signal.SIGTERM, shutdown_handler)
+
     app_logger.info("Бот запущен в режиме polling...")
     bot.infinity_polling()

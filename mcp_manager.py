@@ -32,13 +32,17 @@ class MCPServerConfig:
 
 
 class MCPServerManager:
-    """Simplified MCP server manager that creates fresh connections for each use"""
+    """MCP server manager with connection pooling for better performance"""
 
     def __init__(self, server_configs: List[MCPServerConfig], cache_ttl: int = None):
         self.configs = [c for c in server_configs if c.enabled]
         self._tool_cache = {}  # {tool_name: server_name}
         self._tools_list_cache = []  # Cached list of OpenAI-formatted tools
         self._cache_timestamp = 0
+
+        # Connection pooling
+        self._active_sessions = {}  # {server_name: (session, streams_context, last_used_timestamp)}
+        self._session_ttl = 300  # 5 minutes by default
 
         # Use provided TTL or default from environment/config
         if cache_ttl is None:
@@ -49,11 +53,84 @@ class MCPServerManager:
                 cache_ttl = 300  # Fallback to 5 minutes
 
         self._cache_ttl = cache_ttl
-        mcp_logger.info(f"MCPServerManager initialized with {len(self.configs)} configs, cache TTL={self._cache_ttl}s")
+        mcp_logger.info(f"MCPServerManager initialized with {len(self.configs)} configs, cache TTL={self._cache_ttl}s, session TTL={self._session_ttl}s")
+
+    async def _get_or_create_session(self, config: MCPServerConfig):
+        """Get existing session or create a new one"""
+        import time
+
+        # Check if we have an active session
+        if config.name in self._active_sessions:
+            session_data = self._active_sessions[config.name]
+            session = session_data['session']
+            last_used = session_data['last_used']
+
+            # Check if session is still valid (not expired)
+            if (time.time() - last_used) < self._session_ttl:
+                # Update last used time
+                session_data['last_used'] = time.time()
+                mcp_logger.info(f"Reusing existing session for {config.name}")
+                return session
+            else:
+                # Session expired, close it
+                mcp_logger.info(f"Session for {config.name} expired, creating new one")
+                await self._close_session(config.name)
+
+        # Create new session
+        if config.transport != "stdio":
+            raise NotImplementedError("Only stdio transport is supported")
+
+        server_params = StdioServerParameters(
+            command=config.command,
+            args=config.args,
+            env=config.env
+        )
+
+        mcp_logger.info(f"Connecting to {config.name}...")
+
+        # Create stdio_client context manager
+        stdio_ctx = stdio_client(server_params)
+        read_stream, write_stream = await stdio_ctx.__aenter__()
+
+        # Create session context manager
+        session_ctx = ClientSession(read_stream, write_stream)
+        session = await session_ctx.__aenter__()
+        await session.initialize()
+
+        # Store session with all necessary context managers for proper cleanup
+        self._active_sessions[config.name] = {
+            'session': session,
+            'session_ctx': session_ctx,
+            'stdio_ctx': stdio_ctx,
+            'last_used': time.time()
+        }
+        mcp_logger.info(f"Connected to {config.name}")
+
+        return session
+
+    async def _close_session(self, server_name: str):
+        """Close an active session"""
+        if server_name in self._active_sessions:
+            session_data = self._active_sessions[server_name]
+            try:
+                # Close session first
+                await session_data['session_ctx'].__aexit__(None, None, None)
+                # Then close stdio streams
+                await session_data['stdio_ctx'].__aexit__(None, None, None)
+                mcp_logger.info(f"Closed session for {server_name}")
+            except Exception as e:
+                mcp_logger.error(f"Error closing session for {server_name}: {e}")
+            finally:
+                del self._active_sessions[server_name]
+
+    async def close_all_sessions(self):
+        """Close all active sessions (call on shutdown)"""
+        for server_name in list(self._active_sessions.keys()):
+            await self._close_session(server_name)
 
     @asynccontextmanager
     async def connect_to_server(self, config: MCPServerConfig):
-        """Context manager for connecting to a single server"""
+        """Context manager for connecting to a single server (backwards compatibility)"""
         if config.transport != "stdio":
             raise NotImplementedError("Only stdio transport is supported")
 
@@ -84,27 +161,30 @@ class MCPServerManager:
         mcp_logger.info("Fetching fresh tools from all servers...")
         for config in self.configs:
             try:
-                async with self.connect_to_server(config) as session:
-                    tools_result = await session.list_tools()
+                # Use connection pooling instead of context manager
+                session = await self._get_or_create_session(config)
+                tools_result = await session.list_tools()
 
-                    for tool in tools_result.tools:
-                        openai_tool = {
-                            "type": "function",
-                            "function": {
-                                "name": tool.name,
-                                "description": tool.description or "No description available",
-                                "parameters": tool.inputSchema if hasattr(tool, 'inputSchema') else {}
-                            },
-                            "_mcp_server": config.name
-                        }
-                        all_tools.append(openai_tool)
+                for tool in tools_result.tools:
+                    openai_tool = {
+                        "type": "function",
+                        "function": {
+                            "name": tool.name,
+                            "description": tool.description or "No description available",
+                            "parameters": tool.inputSchema if hasattr(tool, 'inputSchema') else {}
+                        },
+                        "_mcp_server": config.name
+                    }
+                    all_tools.append(openai_tool)
 
-                        # Update cache: tool_name -> server_name
-                        self._tool_cache[tool.name] = config.name
+                    # Update cache: tool_name -> server_name
+                    self._tool_cache[tool.name] = config.name
 
-                    mcp_logger.info(f"Got {len(tools_result.tools)} tools from {config.name}")
+                mcp_logger.info(f"Got {len(tools_result.tools)} tools from {config.name}")
             except Exception as e:
                 mcp_logger.error(f"Failed to get tools from {config.name}: {e}")
+                # Close session on error
+                await self._close_session(config.name)
 
         # Update cache timestamp and tools list
         self._cache_timestamp = time.time()
@@ -157,24 +237,28 @@ class MCPServerManager:
         return config
 
     async def _find_server_with_tool(self, tool_name: str) -> Optional[MCPServerConfig]:
-        """Search all servers for a tool"""
+        """Search all servers for a tool using connection pooling"""
         mcp_logger.info(f"Cache miss for tool '{tool_name}', searching all servers")
 
         for config in self.configs:
             try:
-                async with self.connect_to_server(config) as session:
-                    # List tools to see if this server has the requested tool
-                    tools_result = await session.list_tools()
-                    has_tool = any(tool.name == tool_name for tool in tools_result.tools)
+                # Use connection pooling
+                session = await self._get_or_create_session(config)
 
-                    if has_tool:
-                        # Update cache
-                        self._tool_cache[tool_name] = config.name
-                        return config
+                # List tools to see if this server has the requested tool
+                tools_result = await session.list_tools()
+                has_tool = any(tool.name == tool_name for tool in tools_result.tools)
+
+                if has_tool:
+                    # Update cache
+                    self._tool_cache[tool_name] = config.name
+                    return config
 
             except Exception as e:
                 # Use exception() to log full traceback
                 mcp_logger.exception(f"Error checking {config.name} for tool {tool_name}: {e}")
+                # Close session on error
+                await self._close_session(config.name)
                 continue
 
         return None
@@ -186,41 +270,46 @@ class MCPServerManager:
         arguments: Dict,
         start_time: float
     ) -> Any:
-        """Execute tool on a specific server (single execution path)"""
+        """Execute tool on a specific server using connection pooling"""
         from config import MCP_TOOL_TIMEOUT_SECONDS
         import time
 
         try:
-            async with self.connect_to_server(config) as session:
-                mcp_logger.info(
-                    f"Executing {tool_name} on {config.name}, "
-                    f"args={json.dumps(arguments)[:200]}"
-                )
+            # Use connection pooling - reuse existing session
+            session = await self._get_or_create_session(config)
 
-                # Execute the tool with timeout
-                result = await asyncio.wait_for(
-                    session.call_tool(tool_name, arguments),
-                    timeout=MCP_TOOL_TIMEOUT_SECONDS
-                )
+            mcp_logger.info(
+                f"Executing {tool_name} on {config.name}, "
+                f"args={json.dumps(arguments)[:200]}"
+            )
 
-                duration = time.time() - start_time
-                result_str = str(result)
-                mcp_logger.info(
-                    f"Tool executed: {tool_name}, duration={duration:.2f}s, "
-                    f"result_size={len(result_str)} chars"
-                )
+            # Execute the tool with timeout
+            result = await asyncio.wait_for(
+                session.call_tool(tool_name, arguments),
+                timeout=MCP_TOOL_TIMEOUT_SECONDS
+            )
 
-                # Extract content from result
-                return self._extract_result_content(result)
+            duration = time.time() - start_time
+            result_str = str(result)
+            mcp_logger.info(
+                f"Tool executed: {tool_name}, duration={duration:.2f}s, "
+                f"result_size={len(result_str)} chars"
+            )
+
+            # Extract content from result
+            return self._extract_result_content(result)
 
         except asyncio.TimeoutError:
             error_msg = f"Tool '{tool_name}' execution timed out after {MCP_TOOL_TIMEOUT_SECONDS} seconds"
             mcp_logger.error(error_msg)
+            # Close session on timeout
+            await self._close_session(config.name)
             raise Exception(error_msg)
         except Exception as e:
             # Use exception() to log full traceback
             mcp_logger.exception(f"Error executing tool {tool_name} on {config.name}: {e}")
-            # Invalidate cache entry on failure
+            # Close session on error and invalidate cache
+            await self._close_session(config.name)
             self._tool_cache.pop(tool_name, None)
             raise
 
