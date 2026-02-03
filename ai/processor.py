@@ -3,6 +3,7 @@ AI message processing with MCP tool support.
 """
 
 import base64
+import time
 from config import MAX_HISTORY_LENGTH, MAX_VISION_TOKENS, MCP_MAX_ITERATIONS, API_MAX_RETRIES
 from core.openai_client import client
 from core.async_helpers import run_async
@@ -82,6 +83,9 @@ def process_text_message(text, chat_id, image_content=None):
             tools_param = None  # Graceful degradation
 
     try:
+        start_time = time.time()
+        app_logger.info(f"API request started: chat_id={chat_id}, model={model}, messages={len(history)}, tools={len(tools_param) if tools_param else 0}")
+
         chat_completion = client.chat.completions.create(
             model=model,
             messages=history,
@@ -89,6 +93,9 @@ def process_text_message(text, chat_id, image_content=None):
             tools=tools_param,
             tool_choice="auto" if tools_param else None
         )
+
+        duration = time.time() - start_time
+        app_logger.info(f"API response received: chat_id={chat_id}, model={model}, duration={duration:.2f}s")
     except Exception as e:
         app_logger.error(f"API error: chat_id={chat_id}, model={model}, error={str(e)}")
         if type(e).__name__ == "BadRequestError":
@@ -98,6 +105,10 @@ def process_text_message(text, chat_id, image_content=None):
                         f"BadRequestError, clearing history and retrying: attempt={attempt + 1}/{API_MAX_RETRIES}, chat_id={chat_id}"
                     )
                     clear_chat_history(chat_id)
+
+                    retry_start = time.time()
+                    app_logger.info(f"API retry request started: chat_id={chat_id}, model={model}, attempt={attempt + 1}")
+
                     chat_completion = client.chat.completions.create(
                         model=model,
                         messages=[system_message, {"role": "user", "content": text}],
@@ -105,6 +116,9 @@ def process_text_message(text, chat_id, image_content=None):
                         tools=tools_param,
                         tool_choice="auto" if tools_param else None
                     )
+
+                    retry_duration = time.time() - retry_start
+                    app_logger.info(f"API retry response received: chat_id={chat_id}, model={model}, duration={retry_duration:.2f}s")
                     break
                 except Exception as retry_exc:
                     if attempt == API_MAX_RETRIES - 1:

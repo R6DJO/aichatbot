@@ -5,6 +5,7 @@ Handles iterative tool calling loop with OpenAI API.
 """
 
 import json
+import time
 from core.async_helpers import run_async
 from core.telegram import app_logger
 
@@ -66,6 +67,9 @@ class ToolExecutor:
 
             # Get next response from API with tool results
             try:
+                start_time = time.time()
+                app_logger.info(f"API request started (iteration {iteration}): model={model}, messages={len(history)}, tools={len(tools_param) if tools_param else 0}")
+
                 chat_completion = self.client.chat.completions.create(
                     model=model,
                     messages=history,
@@ -73,7 +77,10 @@ class ToolExecutor:
                     tools=tools_param,
                     tool_choice="auto" if tools_param else None
                 )
+
+                duration = time.time() - start_time
                 message = chat_completion.choices[0].message
+                app_logger.info(f"API response received (iteration {iteration}): model={model}, duration={duration:.2f}s, has_tool_calls={bool(message.tool_calls)}")
             except Exception as e:
                 app_logger.error(f"API error during tool call iteration: {e}")
                 break

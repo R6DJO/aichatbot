@@ -42,7 +42,7 @@ class MCPServerManager:
 
         # Connection pooling
         self._active_sessions = {}  # {server_name: (session, streams_context, last_used_timestamp)}
-        self._session_ttl = 300  # 5 minutes by default
+        self._session_ttl = 3600  # 1 hour by default
 
         # Use provided TTL or default from environment/config
         if cache_ttl is None:
@@ -50,7 +50,7 @@ class MCPServerManager:
                 from config import MCP_CACHE_TTL_SECONDS
                 cache_ttl = MCP_CACHE_TTL_SECONDS
             except ImportError:
-                cache_ttl = 300  # Fallback to 5 minutes
+                cache_ttl = 3600  # Fallback to 1 hour
 
         self._cache_ttl = cache_ttl
         mcp_logger.info(f"MCPServerManager initialized with {len(self.configs)} configs, cache TTL={self._cache_ttl}s, session TTL={self._session_ttl}s")
@@ -280,7 +280,7 @@ class MCPServerManager:
 
             mcp_logger.info(
                 f"Executing {tool_name} on {config.name}, "
-                f"args={json.dumps(arguments)[:200]}"
+                f"args={json.dumps(arguments, ensure_ascii=False)[:200]}"
             )
 
             # Execute the tool with timeout
