@@ -4,16 +4,6 @@
 
 Telegram AI Chat Bot использует **модульную архитектуру** для разделения ответственности, улучшения читаемости кода и упрощения тестирования.
 
-## Refactoring Metrics
-
-| Metric | Before | After | Change |
-|--------|--------|-------|--------|
-| Main file lines | 1385 | 47 | -97% |
-| Number of files | 1 | 19+ | +1800% |
-| Packages | 0 | 7 | - |
-| Testability | Low | High | ++ |
-| Maintainability | Medium | High | ++ |
-
 ## Architecture Diagram
 
 ```

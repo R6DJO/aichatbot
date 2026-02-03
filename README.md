@@ -13,7 +13,7 @@ Production-ready Telegram bot with multi-modal AI capabilities, MCP tools integr
 - 🔐 **Admin Approval System** — User access control with pending/approved/denied statuses
 - ⚡ **Performance Optimized** — Connection pooling, caching, detailed timing logs
 - 📊 **Production Ready** — Comprehensive logging, graceful shutdown, error handling
-- 🏗️ **Modular Architecture** — 19 modules across 7 packages (97% reduction from 1385-line monolith)
+- 🏗️ **Modular Architecture** — 19 modules across 7 packages
 
 ## Quick Start
 
@@ -28,7 +28,7 @@ Production-ready Telegram bot with multi-modal AI capabilities, MCP tools integr
 
 ```bash
 # 1. Clone and setup environment
-git clone <repository-url>
+git clone https://github.com/R6DJO/aichatbot
 cd aichatbot
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -323,11 +323,18 @@ docker compose logs -f bot  # if running in Docker
 
 ## License
 
-[Your License Here]
+This project is licensed under the Business Source License 1.1 (BUSL-1.1).
+
+See [LICENSE](LICENSE) for the full license text.
+
+**Key points:**
+- Free to use for any purpose, including commercial use
+- Source code available and modifiable
+- After Change Date (2028-02-03), converts to GPL v3.0 or later
 
 ## Support
 
-- **Issues**: [GitHub Issues](your-repo-url/issues)
+- **Issues**: [GitHub Issues](https://github.com/R6DJO/aichatbot/issues)
 - **Documentation**: See `docs/` directory
 - **Admin**: Contact bot administrator for access
 
