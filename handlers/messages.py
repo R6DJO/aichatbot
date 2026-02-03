@@ -3,7 +3,6 @@ Text and photo message handlers.
 """
 
 from core.telegram import bot, app_logger
-from config import MAX_MESSAGE_LENGTH
 from auth.access_control import is_authorized, is_admin
 from utils.rate_limiter import check_rate_limit
 from utils.typing_indicator import start_typing, stop_typing
@@ -64,37 +63,6 @@ def echo_message(message):
         return
 
     stop_typing(message.chat.id)
-    # Send with automatic splitting for long messages
-    # Falls back to plain text on parse error
-    try:
-        send_long_message(message.chat.id, ai_response, reply_to_message=message, parse_mode="HTML")
-    except Exception as e:
-        if "can't parse entities" in str(e) or "Bad Request" in str(e):
-            app_logger.warning(f"HTML parse error, sending as plain text: {e}")
-            # Отправляем как обычный текст без форматирования
-            if len(ai_response) <= MAX_MESSAGE_LENGTH:
-                bot.reply_to(message, ai_response)
-            else:
-                # Split into chunks for plain text
-                chunks = []
-                current_chunk = ""
-                for line in ai_response.split('\n'):
-                    if len(current_chunk) + len(line) + 1 > MAX_MESSAGE_LENGTH:
-                        if current_chunk:
-                            chunks.append(current_chunk)
-                        current_chunk = line
-                    else:
-                        if current_chunk:
-                            current_chunk += '\n' + line
-                        else:
-                            current_chunk = line
-                if current_chunk:
-                    chunks.append(current_chunk)
 
-                for i, chunk in enumerate(chunks):
-                    if i == 0:
-                        bot.reply_to(message, chunk)
-                    else:
-                        bot.send_message(message.chat.id, chunk)
-        else:
-            raise
+    # Send with automatic splitting and parse error recovery
+    send_long_message(message.chat.id, ai_response, reply_to_message=message, parse_mode="HTML")

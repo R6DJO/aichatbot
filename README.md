@@ -1,352 +1,343 @@
 # Telegram AI Chat Bot
 
-Telegram бот с multi-modal AI возможностями: текстовые чаты, анализ изображений, генерация картинок, голосовые сообщения (транскрибация + TTS), MCP инструменты.
+Production-ready Telegram bot with multi-modal AI capabilities, MCP tools integration, and advanced performance optimizations.
 
-## Возможности
+## Features
 
-- 📝 **Текстовые чаты** — поддержка различных AI моделей (GLM, GPT, Qwen, Codex)
-- 🖼️ **Анализ изображений** — GPT-4 Vision для анализа картинок
-- 🎨 **Генерация изображений** — DALL-E 3
-- 🎤 **Голосовые сообщения** — Whisper транскрибация + TTS ответ
-- 💾 **История чата** — персистентность в S3-совместимом хранилище
-- 🔐 **Контроль доступа** — одобрение пользователей администратором
-- 🤖 **Переключение моделей** — выбор AI модели для текстовых чатов
-- 🔧 **MCP Tools** — внешние инструменты (файловая система, GitHub и др.)
-- 📊 **Логирование** — все запросы и ответы в stdout (Docker best practice)
+- 💬 **Multi-Model Text Chat** — Support for GLM, GPT, Qwen, and other OpenAI-compatible models
+- 👁️ **Image Analysis** — GPT-4 Vision for understanding images
+- 🎨 **Image Generation** — DALL-E 3 integration
+- 🎤 **Voice Messages** — Whisper transcription + TTS responses
+- 🔧 **MCP Tools** — External tool integration (filesystem, web search, GitHub, databases)
+- 💾 **S3 Storage** — Persistent chat history and settings in S3-compatible storage
+- 🔐 **Admin Approval System** — User access control with pending/approved/denied statuses
+- ⚡ **Performance Optimized** — Connection pooling, caching, detailed timing logs
+- 📊 **Production Ready** — Comprehensive logging, graceful shutdown, error handling
+- 🏗️ **Modular Architecture** — 19 modules across 7 packages
 
-## 🏗️ Архитектура (Refactored)
+## Quick Start
 
-Проект использует **модульную архитектуру** для улучшения читаемости, тестируемости и масштабируемости:
-
-- ✅ **Разделение ответственности** — каждый модуль отвечает за свою область
-- ✅ **Легкая поддержка** — код разбит на логические компоненты
-- ✅ **Тестируемость** — функции можно тестировать изолированно
-- ✅ **Масштабируемость** — легко добавлять новые handlers и features
-
-**Метрики рефакторинга:**
-- Старый `bot.py`: 1385 строк
-- Новый `bot.py`: 47 строк (97% сокращение!)
-- Создано: 19 модулей в 7 пакетах
-
-## Требования
+### Prerequisites
 
 - Python 3.10+
-- Docker и Docker Compose
-- Telegram Bot Token
-- OpenAI API Key или совместимый API
-- Node.js/npm (для MCP серверов, включено в Docker)
+- Docker and Docker Compose
+- Telegram Bot Token ([create one](https://t.me/BotFather))
+- OpenAI API key or compatible API endpoint
 
-## Установка
-
-### 1. Клонирование и настройка окружения
+### Installation
 
 ```bash
-# Создаем виртуальное окружение
+# 1. Clone and setup environment
+git clone https://github.com/R6DJO/aichatbot
+cd aichatbot
 python -m venv venv
-source venv/bin/activate
-
-# Устанавливаем зависимости
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
-```
 
-### 2. Настройка переменных окружения
-
-```bash
+# 2. Configure environment
 cp .env.example .env
+# Edit .env with your credentials
+
+# 3. Setup MCP (optional but recommended)
+cp mcp.json.example mcp.json
+# Edit mcp.json to enable desired tools
+
+# 4. Start services
+docker compose up -d
+
+# 5. Check logs
+docker compose logs -f bot
 ```
 
-Отредактируйте `.env` (все значения обязательны, если не указано иное):
+### Configuration
+
+Required environment variables in `.env`:
 
 ```bash
 # Telegram Bot
 TG_BOT_TOKEN=your_telegram_bot_token
 
-# Администратор бота
-ADMIN_USERNAME=R6DJO
-# Обязательно целое число (chat_id)
-ADMIN_CHAT_ID=1212054
+# Administrator
+ADMIN_USERNAME=YourUsername
+ADMIN_CHAT_ID=123456789  # Get from @userinfobot
 
 # OpenAI API
 OPENAI_API_KEY=your_api_key
 OPENAI_BASE_URL=http://localhost:8317/v1
 
-# MinIO
-MINIO_ROOT_USER=minioadmin
-MINIO_ROOT_PASSWORD=minioadmin123
+# S3 Storage
 S3_KEY_ID=botuser
 S3_KEY_SECRET=botpassword123
 S3_BUCKET=aichatbot
-MINIO_ENDPOINT=http://localhost:9000
+MINIO_ENDPOINT=http://minio:9000  # or other S3-compatible endpoint
 
-# MCP (опционально)
+# MCP (optional)
 MCP_ENABLED=true
-MCP_FILESYSTEM_ENABLED=true
+MCP_WARMUP_CACHE=true
+MCP_CACHE_TTL_SECONDS=3600  # 1 hour
 ```
 
-> Минимально необходимые переменные: `TG_BOT_TOKEN`, `ADMIN_USERNAME`, `ADMIN_CHAT_ID`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `S3_KEY_ID`, `S3_KEY_SECRET`, `S3_BUCKET`.
+See `.env.example` for full configuration options.
 
-> Rate limiting хранит состояние в памяти (один процесс). Для multi-worker деплоя используйте Redis/другое общее хранилище и TTL-ключи.
+## Bot Commands
 
-### 3. Настройка MCP (опционально)
+### User Commands
 
-```bash
-cp mcp.json.example mcp.json
-# Отредактируйте mcp.json по необходимости
+| Command | Description |
+|---------|-------------|
+| `/start`, `/help` | Welcome message and help |
+| `/models` | List available AI models |
+| `/model <name>` | Select AI model for chat |
+| `/new` | Clear chat history |
+| `/image <prompt>` | Generate image with DALL-E 3 |
+| `/tools` | List available MCP tools |
+| `/mcp on\|off` | Enable/disable MCP tools |
+| `/mcp` | Show MCP status |
+
+### Admin Commands
+
+| Command | Description |
+|---------|-------------|
+| `/users` | List all users with statuses |
+| `/approve <username>` | Approve user access |
+| `/deny <username>` | Deny user access |
+| `/mcpstatus` | Check MCP servers status |
+
+## MCP Tools Integration
+
+The bot supports external tools via Model Context Protocol (MCP):
+
+### Available Tools
+
+- **🔍 Web Search** — Brave Search for internet queries
+- **📁 Filesystem** — Read/write files in workspace
+- **🐙 GitHub** — Repository operations, issues, PRs
+- **🗄️ Databases** — PostgreSQL, SQLite queries
+- **🌐 HTTP** — API requests and webhooks
+
+### Example Interaction
+
+```
+You: Search for latest Python news
+Bot: [Uses brave-search MCP tool]
+     Here's what I found:
+     1. Python 3.13 released with...
+     2. New features in...
+
+You: Save summary to notes.txt
+Bot: [Uses filesystem MCP tool]
+     ✅ Saved to mcp_workspace/notes.txt
 ```
 
-Подробнее: [MCP_SETUP.md](MCP_SETUP.md)
+Configuration: See `docs/MCP_SETUP.md`
 
-### 4. Запуск через Docker Compose (рекомендуется)
+## Performance Features
 
-```bash
-docker-compose up -d
+### Connection Pooling ⚡
+
+- **MCP sessions** are reused for 1 hour (configurable)
+- **~100ms faster** per tool call after first use
+- **Automatic cleanup** on errors and shutdown
+
+### API Request Monitoring 📊
+
+All OpenAI API calls are logged with timing:
+
+```log
+API request started: chat_id=123, model=glm-4.7, messages=5, tools=4
+API response received: chat_id=123, model=glm-4.7, duration=2.34s
+Tool executed: brave_web_search, duration=1.40s
 ```
 
-Автоматически запустятся:
-- **MinIO** — S3-совместимое хранилище
-- **minio-setup** — создаст бакет и пользователя
-- **bot** — Telegram бот
+Enables:
+- Performance debugging
+- Bottleneck identification
+- Cost monitoring
 
-Логи бота: `docker logs -f telegram-bot` или `docker compose logs -f bot`
+See `docs/PERFORMANCE.md` for details.
 
-### 5. Запуск в ручном режиме (для разработки)
+## Architecture
+
+### Modular Structure
+
+```
+bot.py (47 lines) → Entry point
+├── core/           → Telegram, OpenAI, async helpers
+├── config/         → Environment variables and constants
+├── handlers/       → Command and message handlers
+├── auth/           → User management and access control
+├── ai/             → AI processing and tool execution
+├── storage/        → S3 operations (history, settings)
+├── models/         → Model management
+├── utils/          → Formatters, rate limiter, typing indicator
+└── mcp_manager.py  → MCP server connection pooling
+```
+
+### Request Flow
+
+```
+User → Telegram → auth/ → ai/processor.py
+                             ↓
+                        OpenAI API
+                             ↓
+                        MCP Tools (pooled connections)
+                             ↓
+                        S3 Storage
+```
+
+See `docs/ARCHITECTURE.md` for detailed documentation.
+
+## Deployment
+
+### Docker (Recommended)
 
 ```bash
-# Запустить MinIO
-docker-compose up -d minio minio-setup
+docker compose up -d
+```
 
-# Запустить бота
+Services:
+- **bot** — Telegram bot with MCP support
+- **minio** — S3-compatible storage
+- **minio-setup** — Automatic bucket and user creation
+
+### Manual
+
+```bash
+# Start MinIO
+docker compose up -d minio minio-setup
+
+# Run bot locally
 source venv/bin/activate
 python bot.py
 ```
 
-## Команды бота
+### Production Considerations
 
-### Общие команды
+1. **Environment**: Use production `.env` with secure credentials
+2. **Storage**: Configure AWS S3 or production MinIO cluster
+3. **Logging**: Logs go to stdout (Docker best practice)
+4. **Monitoring**: Check `docker logs` or container orchestration logs
+5. **Scaling**: Single-process design (for multi-worker, use Redis for rate limiter)
 
-| Команда | Описание |
-|---------|----------|
-| `/start` или `/help` | Приветственное сообщение и справка |
-| `/models` | Список доступных AI моделей (группировка по производителю) |
-| `/model <название>` | Выбор модели для текстовых чатов |
-| `/new` | Очистка истории чата |
-| `/image <запрос>` | Генерация изображения через DALL-E 3 |
-| `/tools` | Список доступных MCP инструментов |
-| `/mcp on/off` | Включить/выключить MCP инструменты |
-| `/mcp` | Показать статус MCP |
+## Authorization System
 
-### Команды администратора
+1. **New user** sends message → `pending` status
+2. **Admin** receives notification
+3. **Admin** approves/denies via `/approve` or `/deny`
+4. **User** notified of decision
 
-| Команда | Описание |
-|---------|----------|
-| `/users` | Список всех пользователей со статусами |
-| `/approve <username>` | Разрешить доступ пользователю |
-| `/deny <username>` | Запретить доступ пользователю |
-| `/mcpstatus` | Статус MCP серверов |
-
-### Примеры
-
-```
-/models
-📋 Доступные модели:
-
-🏢 openai
-  gpt-5
-  gpt-5.1
-  ▶️ gpt-5.2
-  ...
-
-/model gpt-5.2
-✅ Модель изменена на: gpt-5.2
-
-/image кошка в космосе
-[сгенерирует изображение]
-
-/tools
-🔧 Available MCP Tools:
-
-📦 filesystem (14 tools)
-  - read_file
-  - write_file
-  - list_directory
-  ...
-```
-
-## MCP (Model Context Protocol)
-
-MCP позволяет боту использовать внешние инструменты:
-
-- 📁 Файловая система — чтение/запись файлов в `mcp_workspace/`
-- 🐙 GitHub — работа с репозиториями, issues, PR
-- 🔍 Поиск — Brave Search для поиска в интернете
-- 🗄️ Базы данных — PostgreSQL, SQLite
-
-**Пример диалога с MCP:**
-```
-Вы: Какие файлы есть в workspace?
-Bot: [Анализирует файловую систему через MCP]
-В рабочем каталоге:
-- README.md
-- todo_cli.py
-- touch.me
-```
-
-Подробнее: [MCP_SETUP.md](MCP_SETUP.md)
-
-## Система авторизации
-
-1. **Новый пользователь** пишет боту → создаётся заявка со статусом `pending`
-2. **Администратор** получает уведомление о новом пользователе
-3. **Администратор** одобряет (`/approve`) или отклоняет (`/deny`) заявку
-4. **Пользователь** получает уведомление о решении
-
-Статусы пользователей:
-- ⏳ **Pending** — ожидает подтверждения
-- ✅ **Approved** — доступ разрешён
-- ❌ **Denied** — доступ запрещён
-
-## Архитектура
-
-### Модульная структура
-
-```
-Telegram API
-     ↓
-  bot.py (entry point)
-     ↓
-  handlers/           → auth/            → storage/
-  - commands.py         - validators.py    - s3_client.py
-  - admin_commands.py   - user_manager.py  - chat_history.py
-  - mcp_commands.py     - access_control   - user_settings.py
-  - messages.py
-  - voice.py          → ai/              → models/
-     ↓                  - processor.py      - model_manager.py
-  core/
-  - telegram.py       → utils/           → config.py
-  - openai_client.py    - formatters.py
-  - async_helpers.py    - messaging.py
-                        - rate_limiter.py
-                        - typing_indicator.py
-```
-
-### Поток данных
-
-```
-User → Telegram → handlers/ → auth/ → ai/processor.py
-                                  ↓
-                             OpenAI API
-                                  ↓
-                             MCP Tools
-                                  ↓
-                           storage/S3 Storage
-                           - chat history
-                           - user settings
-                           - users database
-```
-
-### Ключевые компоненты
-
-- **bot.py** — точка входа (~47 строк), инициализирует MCP и запускает polling
-- **config.py** — все переменные окружения и константы
-- **core/** — инициализация бота, OpenAI клиента, async helpers
-- **handlers/** — обработчики команд и сообщений (декораторы)
-- **auth/** — управление пользователями и проверка доступа
-- **ai/** — core AI logic с поддержкой MCP tool calling
-- **storage/** — работа с S3 (история чатов, настройки)
-- **models/** — получение доступных моделей из API
-- **utils/** — вспомогательные функции (форматирование, typing indicator, rate limiter)
-- **mcp_manager.py** — MCP сервер менеджер (без изменений)
-
-**Режим работы:** Polling (бот постоянно опрашивает Telegram API)
-
-📖 **Подробная документация архитектуры:** [ARCHITECTURE.md](ARCHITECTURE.md)
-
-## S3-совместимые хранилища
-
-| Хранилище | MINIO_ENDPOINT |
-|-----------|----------------|
-| MinIO | `http://localhost:9000` |
-| Yandex Cloud | (не указывать) |
-| AWS S3 | `https://s3.amazonaws.com` |
-
-Подробнее в [MINIO_SETUP.md](MINIO_SETUP.md).
-
-## Структура файлов
-
-```
-aichatbot/
-├── bot.py                # Точка входа (~47 строк)
-├── bot.py.backup         # Оригинальный монолитный файл (1385 строк)
-├── config.py             # Конфигурация и env переменные
-├── mcp_manager.py        # MCP менеджер
-│
-├── core/                 # Инициализация
-│   ├── __init__.py
-│   ├── telegram.py       # Bot instance и логирование
-│   ├── openai_client.py  # OpenAI client setup
-│   └── async_helpers.py  # Event loop, run_async()
-│
-├── storage/              # S3 операции
-│   ├── __init__.py
-│   ├── s3_client.py      # S3 client creation
-│   ├── chat_history.py   # Chat history CRUD
-│   └── user_settings.py  # User settings CRUD
-│
-├── auth/                 # Авторизация
-│   ├── __init__.py
-│   ├── validators.py     # Username validation
-│   ├── user_manager.py   # User registration, status
-│   └── access_control.py # is_authorized, is_admin
-│
-├── models/               # Управление моделями
-│   ├── __init__.py
-│   └── model_manager.py  # fetch_models, model selection
-│
-├── ai/                   # AI процессинг
-│   ├── __init__.py
-│   └── processor.py      # Core AI logic + MCP tool calling
-│
-├── handlers/             # Telegram handlers
-│   ├── __init__.py
-│   ├── commands.py       # /start, /help, /models, /model, /new, /image
-│   ├── admin_commands.py # /users, /approve, /deny, /mcpstatus
-│   ├── mcp_commands.py   # /tools, /mcp
-│   ├── messages.py       # Text & photo handler
-│   └── voice.py          # Voice message handler
-│
-├── utils/                # Вспомогательные функции
-│   ├── __init__.py
-│   ├── formatters.py     # markdown_to_html, escape_html
-│   ├── messaging.py      # send_long_message
-│   ├── rate_limiter.py   # Rate limiting
-│   └── typing_indicator.py # Typing state management
-│
-├── requirements.txt      # Python зависимости
-├── Dockerfile            # Docker образ для бота
-├── docker-compose.yml    # MinIO + Bot
-├── .env.example          # Пример переменных окружения
-├── mcp.json.example      # Пример конфигурации MCP
-├── .gitignore
-├── .dockerignore
-│
-├── logs/                 # Логи бота (gitignored)
-├── mcp_workspace/        # Рабочая директория MCP (gitignored)
-│
-├── README.md             # Этот файл
-├── ARCHITECTURE.md       # Подробная документация архитектуры
-├── REFACTORING.md        # История и детали рефакторинга
-├── MCP_SETUP.md          # Документация MCP
-└── MINIO_SETUP.md        # Документация MinIO
-```
+Statuses:
+- ⏳ **Pending** — Waiting for admin approval
+- ✅ **Approved** — Access granted
+- ❌ **Denied** — Access denied
 
 ## Troubleshooting
 
-| Проблема | Решение |
-|----------|---------|
-| Бот не отвечает | Проверьте `/users` — ожидаете ли вы подтверждения? |
-| Доступ запрещён | Свяжитесь с администратором для одобрения |
-| Ошибка S3 подключения | Проверьте `MINIO_ENDPOINT` и учётные данные |
-| Модели не загружаются | Проверьте `OPENAI_BASE_URL/models` endpoint |
-| Docker не стартует | `docker compose logs minio` и `docker compose logs bot` |
-| MCP не работает | Проверьте `mcp.json` на валидность, `/mcpstatus` |
-| Импорт ошибка в боте | Убедитесь что все модули скопированы в Dockerfile |
+| Issue | Solution |
+|-------|----------|
+| Bot not responding | Check `/users` — are you pending approval? |
+| MCP tools not working | Verify `mcp.json` and check `/mcpstatus` |
+| S3 connection error | Check `MINIO_ENDPOINT` and credentials |
+| Models not loading | Verify `OPENAI_BASE_URL/models` endpoint |
+| Docker won't start | Check `docker compose logs minio` and `bot` |
+| Permission denied | Ask admin to `/approve <username>` |
+
+## Documentation
+
+- **📖 [Architecture](docs/ARCHITECTURE.md)** — Detailed system design
+- **🔧 [MCP Setup](docs/MCP_SETUP.md)** — Tool configuration guide
+- **🗄️ [MinIO Setup](docs/MINIO_SETUP.md)** — S3 storage configuration
+- **⚡ [Performance](docs/PERFORMANCE.md)** — Optimization details and benchmarks
+
+## Development
+
+### Project Structure
+
+```
+aichatbot/
+├── bot.py                    # Entry point (47 lines)
+├── config/                   # Configuration package
+│   └── __init__.py
+├── core/                     # Initialization
+│   ├── telegram.py
+│   ├── openai_client.py
+│   └── async_helpers.py
+├── handlers/                 # Telegram handlers
+│   ├── commands.py
+│   ├── admin_commands.py
+│   ├── mcp_commands.py
+│   ├── messages.py
+│   └── voice.py
+├── auth/                     # Access control
+│   ├── validators.py
+│   ├── user_manager.py
+│   └── access_control.py
+├── ai/                       # AI processing
+│   ├── processor.py
+│   └── tool_executor.py
+├── storage/                  # S3 operations
+│   ├── s3_client.py
+│   ├── chat_history.py
+│   └── user_settings.py
+├── models/                   # Model management
+│   └── model_manager.py
+├── utils/                    # Utilities
+│   ├── formatters.py
+│   ├── messaging.py
+│   ├── rate_limiter.py
+│   └── typing_indicator.py
+├── mcp_manager.py            # MCP connection pooling
+├── requirements.txt
+├── Dockerfile
+├── docker-compose.yml
+├── .env.example
+├── mcp.json.example
+└── docs/                     # Documentation
+    ├── ARCHITECTURE.md
+    ├── MCP_SETUP.md
+    ├── MINIO_SETUP.md
+    └── PERFORMANCE.md
+```
+
+### Testing
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run bot in development mode
+python bot.py
+
+# Check logs
+tail -f logs/bot.log  # if logging to file
+docker compose logs -f bot  # if running in Docker
+```
+
+### Contributing
+
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature-name`
+3. Make changes following existing code structure
+4. Test thoroughly
+5. Submit pull request
+
+## License
+
+This project is licensed under the Business Source License 1.1 (BUSL-1.1).
+
+See [LICENSE](LICENSE) for the full license text.
+
+**Key points:**
+- Free to use for any purpose, including commercial use
+- Source code available and modifiable
+- After Change Date (2028-02-03), converts to GPL v3.0 or later
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/R6DJO/aichatbot/issues)
+- **Documentation**: See `docs/` directory
+- **Admin**: Contact bot administrator for access
+
+---
+
+**Built with:** Python, pyTelegramBotAPI, OpenAI API, MCP, Docker, MinIO

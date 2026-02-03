@@ -54,6 +54,7 @@ MAX_VISION_TOKENS = 4000  # Max tokens for vision model responses
 # MCP configuration
 MCP_TOOL_TIMEOUT_SECONDS = 60  # Timeout for tool execution
 MCP_MAX_ITERATIONS = 5  # Maximum tool call iterations to prevent loops
+MCP_CACHE_TTL_SECONDS = int(os.environ.get("MCP_CACHE_TTL_SECONDS", "3600"))  # Cache TTL for tools list (default: 1 hour)
 
 # Typing indicator
 TYPING_INTERVAL_SECONDS = 4  # Interval for sending typing action

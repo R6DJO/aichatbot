@@ -2,14 +2,15 @@
 AI message processing with MCP tool support.
 """
 
-import json
 import base64
+import time
 from config import MAX_HISTORY_LENGTH, MAX_VISION_TOKENS, MCP_MAX_ITERATIONS, API_MAX_RETRIES
 from core.openai_client import client
 from core.async_helpers import run_async
 from core.telegram import app_logger
 from storage.chat_history import get_chat_history, save_chat_history, clear_chat_history
 from storage.user_settings import get_user_model, should_use_mcp_for_user
+from ai.tool_executor import ToolExecutor
 
 # Global MCP manager instance (set from bot.py)
 mcp_manager = None
@@ -82,6 +83,9 @@ def process_text_message(text, chat_id, image_content=None):
             tools_param = None  # Graceful degradation
 
     try:
+        start_time = time.time()
+        app_logger.info(f"API request started: chat_id={chat_id}, model={model}, messages={len(history)}, tools={len(tools_param) if tools_param else 0}")
+
         chat_completion = client.chat.completions.create(
             model=model,
             messages=history,
@@ -89,6 +93,9 @@ def process_text_message(text, chat_id, image_content=None):
             tools=tools_param,
             tool_choice="auto" if tools_param else None
         )
+
+        duration = time.time() - start_time
+        app_logger.info(f"API response received: chat_id={chat_id}, model={model}, duration={duration:.2f}s")
     except Exception as e:
         app_logger.error(f"API error: chat_id={chat_id}, model={model}, error={str(e)}")
         if type(e).__name__ == "BadRequestError":
@@ -98,6 +105,10 @@ def process_text_message(text, chat_id, image_content=None):
                         f"BadRequestError, clearing history and retrying: attempt={attempt + 1}/{API_MAX_RETRIES}, chat_id={chat_id}"
                     )
                     clear_chat_history(chat_id)
+
+                    retry_start = time.time()
+                    app_logger.info(f"API retry request started: chat_id={chat_id}, model={model}, attempt={attempt + 1}")
+
                     chat_completion = client.chat.completions.create(
                         model=model,
                         messages=[system_message, {"role": "user", "content": text}],
@@ -105,6 +116,9 @@ def process_text_message(text, chat_id, image_content=None):
                         tools=tools_param,
                         tool_choice="auto" if tools_param else None
                     )
+
+                    retry_duration = time.time() - retry_start
+                    app_logger.info(f"API retry response received: chat_id={chat_id}, model={model}, duration={retry_duration:.2f}s")
                     break
                 except Exception as retry_exc:
                     if attempt == API_MAX_RETRIES - 1:
@@ -117,82 +131,17 @@ def process_text_message(text, chat_id, image_content=None):
         else:
             raise e
 
-    # Tool calling loop
+    # Tool calling loop (extracted to ToolExecutor)
     message = chat_completion.choices[0].message
 
     if message.tool_calls:
-        iteration = 0
-
-        while message.tool_calls and iteration < MCP_MAX_ITERATIONS:
-            iteration += 1
-            app_logger.info(f"Tool calls (iteration {iteration}): {[tc.function.name for tc in message.tool_calls]}")
-
-            # Add assistant message with tool calls to history
-            history.append({
-                "role": "assistant",
-                "content": message.content,
-                "tool_calls": [
-                    {
-                        "id": tc.id,
-                        "type": "function",
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments
-                        }
-                    }
-                    for tc in message.tool_calls
-                ]
-            })
-
-            # Execute each tool call
-            for tool_call in message.tool_calls:
-                tool_name = tool_call.function.name
-                tool_args = json.loads(tool_call.function.arguments)
-
-                try:
-                    result = run_async(
-                        mcp_manager.execute_tool(tool_name, tool_args)
-                    )
-
-                    history.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "name": tool_name,
-                        "content": json.dumps(result) if not isinstance(result, str) else result
-                    })
-
-                    app_logger.info(f"Tool executed: {tool_name}, result_length={len(str(result))}")
-
-                except Exception as e:
-                    error_msg = f"Error executing tool {tool_name}: {str(e)}"
-                    app_logger.error(error_msg)
-
-                    history.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "name": tool_name,
-                        "content": json.dumps({"error": error_msg})
-                    })
-
-            # Retry API call with tool results
-            try:
-                chat_completion = client.chat.completions.create(
-                    model=model,
-                    messages=history,
-                    max_tokens=max_tokens,
-                    tools=tools_param,
-                    tool_choice="auto" if tools_param else None
-                )
-                message = chat_completion.choices[0].message
-            except Exception as e:
-                app_logger.error(f"API error during tool call iteration: {e}")
-                break
-
-        if iteration >= MCP_MAX_ITERATIONS:
-            app_logger.warning(f"Max tool call iterations ({MCP_MAX_ITERATIONS}) reached for chat_id={chat_id}")
-
-    # Extract final response
-    ai_response = message.content if message.content else "I used tools but couldn't generate a text response."
+        tool_executor = ToolExecutor(mcp_manager, client, max_iterations=MCP_MAX_ITERATIONS)
+        ai_response, max_iterations_reached = tool_executor.execute_tool_loop(
+            message, history, model, max_tokens, tools_param
+        )
+    else:
+        # No tool calls - use message content directly
+        ai_response = message.content if message.content else "No response."
 
     history_text_only.append({"role": "assistant", "content": ai_response})
 

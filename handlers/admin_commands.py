@@ -3,18 +3,17 @@ Admin command handlers.
 """
 
 from core.telegram import bot, app_logger
-from auth.access_control import is_admin
 from auth.user_manager import get_users_db, set_user_status
+from utils.decorators import require_auth, log_command, handle_errors
 import ai.processor  # For accessing mcp_manager
 
 
 @bot.message_handler(commands=["users"])
+@require_auth(admin_only=True)
+@log_command
+@handle_errors()
 def list_users(message):
     """Список всех пользователей (только для админа)"""
-    if not is_admin(message):
-        bot.reply_to(message, "❌ Эта команда доступна только администратору.")
-        return
-
     users_db = get_users_db()
     users = users_db.get("users", {})
 
@@ -43,7 +42,6 @@ def list_users(message):
             text += "\n"
 
     bot.reply_to(message, text, parse_mode="Markdown")
-    app_logger.info(f"Command /users: admin={message.from_user.username}, total_users={len(users)}")
 
 
 def update_user_access(message, username_arg: str, new_status: str, command_name: str):
@@ -102,11 +100,10 @@ def update_user_access(message, username_arg: str, new_status: str, command_name
 
 
 @bot.message_handler(commands=["approve"])
+@require_auth(admin_only=True)
+@handle_errors()
 def approve_user(message):
     """Одобрить пользователя (только для админа)"""
-    if not is_admin(message):
-        return
-
     args = message.text.split("/approve", 1)[1].strip()
     if not args:
         bot.reply_to(message, "Используйте: `/approve <username>`", parse_mode="Markdown")
@@ -116,11 +113,10 @@ def approve_user(message):
 
 
 @bot.message_handler(commands=["deny"])
+@require_auth(admin_only=True)
+@handle_errors()
 def deny_user(message):
     """Запретить пользователя (только для админа)"""
-    if not is_admin(message):
-        return
-
     args = message.text.split("/deny", 1)[1].strip()
     if not args:
         bot.reply_to(message, "Используйте: `/deny <username>`", parse_mode="Markdown")
@@ -130,26 +126,19 @@ def deny_user(message):
 
 
 @bot.message_handler(commands=["mcpstatus"])
+@require_auth(admin_only=True)
+@log_command
+@handle_errors("❌ Error getting MCP status.")
 def mcp_status(message):
-    if not is_admin(message):
-        bot.reply_to(message, "❌ Admin only.")
-        return
-
     if not ai.processor.mcp_manager:
         bot.reply_to(message, "🔧 MCP Manager not initialized.")
         return
 
-    try:
-        status = ai.processor.mcp_manager.get_server_status()
+    status = ai.processor.mcp_manager.get_server_status()
 
-        status_text = "🔧 *MCP Server Status:*\n\n"
-        for server_name, server_status in status.items():
-            emoji = "✅" if server_status == "connected" else "❌"
-            status_text += f"{emoji} *{server_name}*: `{server_status}`\n"
+    status_text = "🔧 *MCP Server Status:*\n\n"
+    for server_name, server_status in status.items():
+        emoji = "✅" if server_status == "connected" else "❌"
+        status_text += f"{emoji} *{server_name}*: `{server_status}`\n"
 
-        bot.reply_to(message, status_text, parse_mode="Markdown")
-        app_logger.info(f"/mcpstatus: admin={message.from_user.username}")
-
-    except Exception as e:
-        app_logger.error(f"Error getting MCP status: {e}")
-        bot.reply_to(message, f"❌ Error: {str(e)}")
+    bot.reply_to(message, status_text, parse_mode="Markdown")
