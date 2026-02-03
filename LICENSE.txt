@@ -1,0 +1,112 @@
+Business Source License 1.1
+
+Licensor:                             R6DJO
+Licensed Work:                        Telegram AI Chat Bot
+                                      https://github.com/R6DJO/aichatbot
+License Use:                          You may use the licensed work as long as you
+                                      comply with the license terms.
+
+Change Date:                          2028-02-03
+
+Change License:                       GNU General Public License v3.0 or later
+
+Additional Use Grant:                 You may use the licensed work for any
+                                      purpose, including commercial purposes,
+                                      as long as you comply with the license
+                                      terms.
+
+Terms of the Business Source License 1.1
+
+---------------------------------------
+
+1. Definitions
+
+1.1. "Licensor" means the individual or entity that offers the Licensed Work under the Business Source License.
+
+1.2. "Licensed Work" means the original work protected by copyright and made available under the Business Source License, including any modifications or additions to that work.
+
+1.3. "Licensee" means any individual or entity that exercises rights granted by the Business Source License.
+
+1.4. "You" means a Licensee.
+
+1.5. "Use" means any activity that requires an express grant of rights under the Business Source License, including but not limited to using, copying, modifying, displaying, distributing, and sublicensing the Licensed Work.
+
+1.6. "External Deployment" means any use of the Licensed Work that makes the functionality of the Licensed Work available to third parties as a service, software application, or any other form, including but not limited to through APIs, web interfaces, or other means of remote access.
+
+1.7. "Change Date" means the date specified in the Licensed Work at which the terms of the Business Source License will change to the Change License as specified in the Licensed Work.
+
+1.8. "Change License" means the license specified in the Licensed Work that will apply after the Change Date.
+
+2. License Grants and Conditions
+
+2.1. Grants
+
+Subject to the terms and conditions of this License, the Licensor hereby grants to You a worldwide, non-exclusive, royalty-free license to do the following:
+
+a) Use the Licensed Work for any purpose, including commercial purposes, except as otherwise restricted in this License.
+
+b) Modify the Licensed Work.
+
+c) Distribute the Licensed Work, provided that You:
+
+    i) include a copy of this License with all copies of the Licensed Work You distribute;
+
+    ii) retain all copyright, patent, trademark, and attribution notices in the Licensed Work;
+
+    iii) clearly identify any modifications You make to the Licensed Work; and
+
+    iv) comply with all applicable laws and regulations.
+
+d) Sublicense the Licensed Work under a license that is consistent with this License, provided that You require all sublicensees to comply with the terms and conditions of this License.
+
+2.2. Conditions
+
+Your rights under Section 2.1 are subject to the following conditions:
+
+a) External Deployment Restriction: If You make the functionality of the Licensed Work available to third parties as a service or through any form of External Deployment, You must make the entire source code of the Licensed Work (including any modifications You made) available under the terms of this License or a compatible open source license. This requirement does not apply if the Change Date has passed.
+
+b) Attribution: You must retain all copyright, patent, trademark, and attribution notices in the Licensed Work and provide appropriate attribution to the Licensor in any reasonable manner requested by the Licensor.
+
+c) Change Date: After the Change Date, the Licensed Work will be available under the Change License specified in the Licensed Work, and the restrictions in Section 2.2(a) will no longer apply.
+
+2.3. Additional Use Grant
+
+Notwithstanding anything to the contrary in this License, the Licensor grants You the additional right to use the Licensed Work for any purpose, including commercial purposes, as long as You comply with the terms and conditions of this License.
+
+3. Restrictions
+
+3.1. You may not:
+
+a) Remove or alter any copyright, patent, trademark, or attribution notices in the Licensed Work.
+
+b) Hold the Licensor or contributors liable for any damages arising from Your use or distribution of the Licensed Work.
+
+c) Use the Licensor's name, logo, or trademarks to endorse or promote products derived from the Licensed Work without prior written consent.
+
+4. Termination
+
+4.1. If You violate any term of this License, Your rights under this License will terminate automatically.
+
+4.2. If Your rights under this License terminate, but You subsequently come into compliance with all terms, the Licensor may, at its discretion, reinstate Your rights.
+
+5. Disclaimer of Warranty
+
+THE LICENSED WORK IS PROVIDED "AS IS" AND WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE LICENSOR OR CONTRIBUTORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE LICENSED WORK OR THE USE OR OTHER DEALINGS IN THE LICENSED WORK.
+
+6. Governing Law and Jurisdiction
+
+This License is governed by the laws of the jurisdiction in which the Licensor is located, without regard to its conflict of law provisions. Any disputes arising under or in connection with this License shall be resolved in the courts of that jurisdiction.
+
+7. Miscellaneous
+
+7.1. If any provision of this License is held to be invalid or unenforceable, the remaining provisions shall remain in full force and effect.
+
+7.2. This License constitutes the entire agreement between You and the Licensor with respect to the Licensed Work and supersedes all prior agreements or understandings, whether written or oral.
+
+7.3. The failure of the Licensor to enforce any right or provision of this License shall not constitute a waiver of such right or provision.
+
+8. Change License
+
+After the Change Date specified in the Licensed Work, the Licensed Work will be made available under the Change License specified in the Licensed Work (GNU General Public License v3.0 or later). The Change License will apply to all users of the Licensed Work, and the restrictions in Section 2.2(a) will no longer apply.
+
+For information on how the Change License applies, please refer to the Change License text: https://www.gnu.org/licenses/gpl-3.0.txt
