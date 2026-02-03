@@ -34,12 +34,22 @@ class MCPServerConfig:
 class MCPServerManager:
     """Simplified MCP server manager that creates fresh connections for each use"""
 
-    def __init__(self, server_configs: List[MCPServerConfig]):
+    def __init__(self, server_configs: List[MCPServerConfig], cache_ttl: int = None):
         self.configs = [c for c in server_configs if c.enabled]
         self._tool_cache = {}  # {tool_name: server_name}
+        self._tools_list_cache = []  # Cached list of OpenAI-formatted tools
         self._cache_timestamp = 0
-        self._cache_ttl = 300  # 5 minutes
-        mcp_logger.info(f"MCPServerManager initialized with {len(self.configs)} configs")
+
+        # Use provided TTL or default from environment/config
+        if cache_ttl is None:
+            try:
+                from config import MCP_CACHE_TTL_SECONDS
+                cache_ttl = MCP_CACHE_TTL_SECONDS
+            except ImportError:
+                cache_ttl = 300  # Fallback to 5 minutes
+
+        self._cache_ttl = cache_ttl
+        mcp_logger.info(f"MCPServerManager initialized with {len(self.configs)} configs, cache TTL={self._cache_ttl}s")
 
     @asynccontextmanager
     async def connect_to_server(self, config: MCPServerConfig):
@@ -63,9 +73,15 @@ class MCPServerManager:
 
     async def get_all_tools(self) -> List[Dict]:
         """Get tools from all configured servers and update cache"""
+        # Return cached tools if still valid
+        if self._is_cache_valid() and self._tools_list_cache:
+            mcp_logger.info(f"Using cached tools: {len(self._tools_list_cache)} tools")
+            return self._tools_list_cache
+
         all_tools = []
         import time
 
+        mcp_logger.info("Fetching fresh tools from all servers...")
         for config in self.configs:
             try:
                 async with self.connect_to_server(config) as session:
@@ -90,8 +106,9 @@ class MCPServerManager:
             except Exception as e:
                 mcp_logger.error(f"Failed to get tools from {config.name}: {e}")
 
-        # Update cache timestamp
+        # Update cache timestamp and tools list
         self._cache_timestamp = time.time()
+        self._tools_list_cache = all_tools
         mcp_logger.info(f"Tool cache updated with {len(self._tool_cache)} tools")
 
         return all_tools
