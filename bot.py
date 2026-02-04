@@ -77,4 +77,9 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, shutdown_handler)
 
     app_logger.info("Бот запущен в режиме polling...")
-    bot.infinity_polling(interval=1)
+    bot.infinity_polling(
+    timeout=10,
+    long_polling_timeout=5,
+    interval=1,
+    retry_timeout=15
+    )
