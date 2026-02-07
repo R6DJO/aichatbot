@@ -45,7 +45,7 @@ RATE_LIMIT_WINDOW = 60  # seconds
 API_MAX_RETRIES = 2  # Max retries for recoverable API errors
 
 # Chat history limits
-MAX_HISTORY_LENGTH = 50  # Maximum number of messages to keep in history
+MAX_HISTORY_LENGTH = int(os.environ.get("MAX_HISTORY_LENGTH", "50"))  # Maximum number of messages to keep in history
 
 # Message and token limits
 MAX_MESSAGE_LENGTH = 4000  # Telegram limit is 4096, use safe margin
