@@ -37,7 +37,7 @@ ENV PATH="/home/botuser/.npm-global/bin:${PATH}"
 ENV NPM_CONFIG_PREFIX=/home/botuser/.npm-global
 
 # Pre-install MCP servers (optional, for faster startup)
-RUN npm install -g @modelcontextprotocol/server-brave-search
+RUN npm install -g @brave/brave-search-mcp-server
 
 # Запускаем бота
 CMD ["python", "bot.py"]
