@@ -3,12 +3,12 @@ Telegram bot initialization and logging setup.
 """
 
 import logging
-import telebot
+from telebot.async_telebot import AsyncTeleBot
 from config import TG_BOT_TOKEN
 
 # Setup telebot logger
-logger = telebot.logger
-telebot.logger.setLevel(logging.INFO)
+logger = logging.getLogger('telebot')
+logger.setLevel(logging.INFO)
 
 # Настройка логирования (только в stdout для Docker)
 logging.basicConfig(
@@ -22,5 +22,5 @@ logging.basicConfig(
 # Application logger
 app_logger = logging.getLogger(__name__)
 
-# Create bot instance (threaded=False as per original design)
-bot = telebot.TeleBot(TG_BOT_TOKEN, threaded=False)
+# Create bot instance (async version for concurrent request handling)
+bot = AsyncTeleBot(TG_BOT_TOKEN)

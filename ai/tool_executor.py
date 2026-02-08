@@ -6,7 +6,6 @@ Handles iterative tool calling loop with OpenAI API.
 
 import json
 import time
-from core.async_helpers import run_async
 from core.telegram import app_logger
 
 
@@ -33,7 +32,7 @@ class ToolExecutor:
         self.client = client
         self.max_iterations = max_iterations
 
-    def execute_tool_loop(self, initial_message, history, model, max_tokens, tools_param):
+    async def execute_tool_loop(self, initial_message, history, model, max_tokens, tools_param):
         """
         Execute tool calls iteratively until complete or max iterations reached.
 
@@ -62,7 +61,7 @@ class ToolExecutor:
 
             # Execute each tool call
             for tool_call in message.tool_calls:
-                result = self._execute_single_tool_call(tool_call)
+                result = await self._execute_single_tool_call(tool_call)
                 self._add_tool_result_to_history(history, tool_call, result)
 
             # Get next response from API with tool results
@@ -100,7 +99,7 @@ class ToolExecutor:
 
         return final_response, max_iterations_reached
 
-    def _execute_single_tool_call(self, tool_call):
+    async def _execute_single_tool_call(self, tool_call):
         """
         Execute a single tool and return result.
 
@@ -114,9 +113,7 @@ class ToolExecutor:
         tool_args = json.loads(tool_call.function.arguments)
 
         try:
-            result = run_async(
-                self.mcp_manager.execute_tool(tool_name, tool_args)
-            )
+            result = await self.mcp_manager.execute_tool(tool_name, tool_args)
             app_logger.info(
                 f"Tool executed: {tool_name}, result_length={len(str(result))}"
             )

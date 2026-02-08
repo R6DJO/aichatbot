@@ -3,7 +3,6 @@ MCP (Model Context Protocol) command handlers.
 """
 
 from core.telegram import bot, app_logger
-from core.async_helpers import run_async
 from storage.user_settings import should_use_mcp_for_user, set_mcp_for_user
 from utils.decorators import require_auth, log_command, handle_errors
 import ai.processor  # For accessing mcp_manager
@@ -13,15 +12,15 @@ import ai.processor  # For accessing mcp_manager
 @require_auth()
 @log_command
 @handle_errors("❌ Error listing tools.")
-def list_tools(message):
+async def list_tools(message):
     if not ai.processor.mcp_manager:
-        bot.reply_to(message, "🔧 MCP tools are not enabled.")
+        await bot.reply_to(message, "🔧 MCP tools are not enabled.")
         return
 
-    tools = run_async(ai.processor.mcp_manager.get_all_tools())
+    tools = await ai.processor.mcp_manager.get_all_tools()
 
     if not tools:
-        bot.reply_to(message, "🔧 No MCP tools available.")
+        await bot.reply_to(message, "🔧 No MCP tools available.")
         return
 
     # Format tool list grouped by server
@@ -72,30 +71,30 @@ def list_tools(message):
 
         # Send multiple messages
         for msg in messages:
-            bot.send_message(message.chat.id, msg, parse_mode="Markdown")
+            await bot.send_message(message.chat.id, msg, parse_mode="Markdown")
     else:
-        bot.reply_to(message, tools_text, parse_mode="Markdown")
+        await bot.reply_to(message, tools_text, parse_mode="Markdown")
 
 
 @bot.message_handler(commands=["mcp"])
 @require_auth()
 @log_command
-def toggle_mcp(message):
+async def toggle_mcp(message):
     if not ai.processor.mcp_manager:
-        bot.reply_to(message, "🔧 MCP tools are not available.")
+        await bot.reply_to(message, "🔧 MCP tools are not available.")
         return
 
     args = message.text.split("/mcp")[1].strip().lower()
 
     if args == "on":
         set_mcp_for_user(message.chat.id, True)
-        bot.reply_to(message, "✅ MCP tools enabled.")
+        await bot.reply_to(message, "✅ MCP tools enabled.")
     elif args == "off":
         set_mcp_for_user(message.chat.id, False)
-        bot.reply_to(message, "❌ MCP tools disabled.")
+        await bot.reply_to(message, "❌ MCP tools disabled.")
     else:
         current_status = "enabled" if should_use_mcp_for_user(message.chat.id) else "disabled"
-        bot.reply_to(
+        await bot.reply_to(
             message,
             f"🔧 *MCP Tools:* {current_status}\n\n"
             f"`/mcp on` - enable tools\n"

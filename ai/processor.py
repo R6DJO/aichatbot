@@ -6,7 +6,6 @@ import base64
 import time
 from config import MAX_HISTORY_LENGTH, MAX_VISION_TOKENS, MCP_MAX_ITERATIONS, API_MAX_RETRIES, DEFAULT_SYSTEM_PROMPT
 from core.openai_client import client
-from core.async_helpers import run_async
 from core.telegram import app_logger
 from storage.chat_history import get_chat_history, save_chat_history, clear_chat_history
 from storage.user_settings import get_user_model, should_use_mcp_for_user, get_user_system_prompt
@@ -16,7 +15,7 @@ from ai.tool_executor import ToolExecutor
 mcp_manager = None
 
 
-def process_text_message(text, chat_id, image_content=None):
+async def process_text_message(text, chat_id, image_content=None):
     """
     Process text message with AI, supporting vision and MCP tools.
 
@@ -84,7 +83,7 @@ def process_text_message(text, chat_id, image_content=None):
     tools_param = None
     if mcp_manager and should_use_mcp_for_user(chat_id):
         try:
-            tools_param = run_async(mcp_manager.get_all_tools())
+            tools_param = await mcp_manager.get_all_tools()
             app_logger.info(f"MCP tools available: {len(tools_param)} tools")
         except Exception as e:
             app_logger.error(f"MCP failed, continuing without tools: {e}")
@@ -144,7 +143,7 @@ def process_text_message(text, chat_id, image_content=None):
 
     if message.tool_calls:
         tool_executor = ToolExecutor(mcp_manager, client, max_iterations=MCP_MAX_ITERATIONS)
-        ai_response, max_iterations_reached = tool_executor.execute_tool_loop(
+        ai_response, max_iterations_reached = await tool_executor.execute_tool_loop(
             message, history, model, max_tokens, tools_param
         )
     else:
