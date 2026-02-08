@@ -43,3 +43,26 @@ def set_mcp_for_user(chat_id, enabled):
     settings = get_user_settings(chat_id)
     settings["mcp_enabled"] = enabled
     save_user_settings(chat_id, settings)
+
+
+def get_user_system_prompt(chat_id):
+    """Получить пользовательский system prompt или None"""
+    settings = get_user_settings(chat_id)
+    return settings.get("system_prompt", None)
+
+
+def set_user_system_prompt(chat_id, prompt):
+    """Установить пользовательский system prompt"""
+    settings = get_user_settings(chat_id)
+    settings["system_prompt"] = prompt
+    save_user_settings(chat_id, settings)
+
+
+def reset_user_system_prompt(chat_id):
+    """Сбросить пользовательский system prompt к дефолтному"""
+    settings = get_user_settings(chat_id)
+    if "system_prompt" in settings:
+        del settings["system_prompt"]
+        save_user_settings(chat_id, settings)
+        return True
+    return False

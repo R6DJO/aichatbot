@@ -6,10 +6,11 @@ from core.telegram import bot, app_logger
 from core.openai_client import client
 from auth.access_control import is_authorized
 from models.model_manager import fetch_models
-from storage.user_settings import get_user_model, set_user_model
+from storage.user_settings import get_user_model, set_user_model, get_user_system_prompt, set_user_system_prompt, reset_user_system_prompt
 from storage.chat_history import clear_chat_history
 from utils.decorators import require_auth, rate_limited, log_command, handle_errors
 from config.help_texts import HELP_TEXTS
+from config import DEFAULT_SYSTEM_PROMPT
 
 
 @bot.message_handler(commands=["help", "start"])
@@ -116,3 +117,78 @@ def image(message):
         image_url,
         reply_to_message_id=message.message_id,
     )
+
+
+@bot.message_handler(commands=["system_prompt"])
+@require_auth()
+@log_command
+@handle_errors()
+def show_system_prompt(message):
+    """Показать текущий system prompt"""
+    user_prompt = get_user_system_prompt(message.chat.id)
+
+    if user_prompt:
+        response = f"🔧 *Ваш пользовательский system prompt:*\n\n```\n{user_prompt}\n```\n\n"
+        response += "Используйте /reset_system_prompt для сброса к дефолтному"
+    else:
+        response = f"🔧 *Дефолтный system prompt:*\n\n```\n{DEFAULT_SYSTEM_PROMPT}\n```\n\n"
+        response += "Используйте /set_system_prompt для установки своего промпта"
+
+    bot.reply_to(message, response, parse_mode="Markdown")
+
+
+@bot.message_handler(commands=["set_system_prompt"])
+@require_auth()
+@log_command
+@handle_errors()
+def set_system_prompt_command(message):
+    """Установить пользовательский system prompt"""
+    args = message.text.split("/set_system_prompt", 1)
+
+    if len(args) < 2 or not args[1].strip():
+        bot.reply_to(
+            message,
+            "❌ Введите текст промпта после команды.\n\n"
+            "Использование: /set_system_prompt <текст>\n\n"
+            "Пример:\n"
+            "/set_system_prompt Отвечай кратко и по делу. Используй эмодзи.",
+            parse_mode="Markdown",
+        )
+        return
+
+    prompt = args[1].strip()
+
+    # Ограничение длины промпта (разумное ограничение)
+    if len(prompt) > 2000:
+        bot.reply_to(
+            message,
+            f"❌ System prompt слишком длинный ({len(prompt)} символов).\n"
+            "Максимальная длина: 2000 символов.",
+            parse_mode="Markdown",
+        )
+        return
+
+    set_user_system_prompt(message.chat.id, prompt)
+
+    response = f"✅ System prompt установлен!\n\n*Ваш промпт:*\n```\n{prompt}\n```\n\n"
+    response += "Используйте /system_prompt для просмотра\n"
+    response += "Используйте /reset_system_prompt для сброса"
+
+    bot.reply_to(message, response, parse_mode="Markdown")
+
+
+@bot.message_handler(commands=["reset_system_prompt"])
+@require_auth()
+@log_command
+@handle_errors()
+def reset_system_prompt_command(message):
+    """Сбросить system prompt к дефолтному"""
+    was_reset = reset_user_system_prompt(message.chat.id)
+
+    if was_reset:
+        response = f"✅ System prompt сброшен к дефолтному!\n\n"
+        response += f"*Дефолтный промпт:*\n```\n{DEFAULT_SYSTEM_PROMPT}\n```"
+    else:
+        response = "ℹ️ У вас уже используется дефолтный system prompt."
+
+    bot.reply_to(message, response, parse_mode="Markdown")

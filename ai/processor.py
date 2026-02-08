@@ -4,12 +4,12 @@ AI message processing with MCP tool support.
 
 import base64
 import time
-from config import MAX_HISTORY_LENGTH, MAX_VISION_TOKENS, MCP_MAX_ITERATIONS, API_MAX_RETRIES
+from config import MAX_HISTORY_LENGTH, MAX_VISION_TOKENS, MCP_MAX_ITERATIONS, API_MAX_RETRIES, DEFAULT_SYSTEM_PROMPT
 from core.openai_client import client
 from core.async_helpers import run_async
 from core.telegram import app_logger
 from storage.chat_history import get_chat_history, save_chat_history, clear_chat_history
-from storage.user_settings import get_user_model, should_use_mcp_for_user
+from storage.user_settings import get_user_model, should_use_mcp_for_user, get_user_system_prompt
 from ai.tool_executor import ToolExecutor
 
 # Global MCP manager instance (set from bot.py)
@@ -48,12 +48,20 @@ def process_text_message(text, chat_id, image_content=None):
     history_text_only = history.copy()
     history_text_only.append({"role": "user", "content": text})
 
-    # Add system message to keep responses concise (avoid Telegram 4096 char limit)
+    # Add system message (use custom user prompt or default)
+    user_prompt = get_user_system_prompt(chat_id)
+    system_prompt_content = user_prompt if user_prompt else DEFAULT_SYSTEM_PROMPT
+
     system_message = {
         "role": "system",
-        "content": "Keep your responses concise and to the point. Prefer shorter answers over long explanations. If listing items, limit to the most important ones. Maximum response length: ~3000 characters."
+        "content": system_prompt_content
     }
     history = [system_message] + history
+
+    if user_prompt:
+        app_logger.info(f"Using custom system prompt for chat_id={chat_id}, length={len(user_prompt)}")
+    else:
+        app_logger.info(f"Using default system prompt for chat_id={chat_id}")
 
     if image_content is not None:
         model = "gpt-4-vision-preview"
