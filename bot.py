@@ -11,6 +11,9 @@ from core.telegram import bot, app_logger
 import handlers  # Import to register all handlers
 import ai.processor
 
+# Global flag for graceful shutdown
+shutdown_requested = False
+
 # Initialize MCP Manager (global singleton)
 # Note: warmup is done inside async main() to avoid event loop conflicts
 if os.environ.get("MCP_ENABLED", "false").lower() == "true":
@@ -30,7 +33,20 @@ else:
 # Graceful shutdown handler
 async def shutdown_handler_async():
     """Handle shutdown and cleanup resources"""
-    app_logger.info("Cleaning up...")
+    global shutdown_requested
+
+    if shutdown_requested:
+        return  # Already shutting down
+
+    shutdown_requested = True
+    app_logger.info("Initiating graceful shutdown...")
+
+    # Stop bot polling
+    try:
+        await bot.close_session()
+        app_logger.info("Bot polling stopped")
+    except Exception as e:
+        app_logger.warning(f"Error stopping bot: {e}")
 
     # Close all MCP sessions
     if ai.processor.mcp_manager is not None:
@@ -44,10 +60,24 @@ async def shutdown_handler_async():
 
 
 def shutdown_handler(signum, frame):
-    """Sync wrapper for shutdown handler"""
+    """Signal handler for SIGINT/SIGTERM"""
     app_logger.info(f"Received shutdown signal {signum}")
-    asyncio.run(shutdown_handler_async())
-    exit(0)
+
+    # Get the current event loop
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # No running loop, create a new one for cleanup
+        app_logger.warning("No running event loop found, creating new one for cleanup")
+        asyncio.run(shutdown_handler_async())
+        exit(0)
+        return
+
+    # Schedule shutdown in the current event loop
+    loop.create_task(shutdown_handler_async())
+
+    # Give some time for cleanup before forcing exit
+    loop.call_later(5.0, lambda: exit(0))
 
 
 # Запуск бота в режиме async polling

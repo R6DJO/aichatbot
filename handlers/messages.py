@@ -3,22 +3,17 @@ Text and photo message handlers.
 """
 
 from core.telegram import bot, app_logger
-from auth.access_control import is_authorized, is_admin
+from auth.access_control import is_authorized, is_admin, should_process_message
 from utils.rate_limiter import check_rate_limit
 from utils.typing_indicator import start_typing, stop_typing
 from utils.messaging import send_long_message
 from ai.processor import process_text_message
 
 
-@bot.message_handler(func=lambda message: is_authorized(message), content_types=["text", "photo"])
+@bot.message_handler(func=should_process_message, content_types=["text", "photo"])
 async def echo_message(message):
-    # Без username не обрабатываем
-    if not message.from_user.username:
-        app_logger.warning(f"Message denied: missing username, chat_id={message.chat.id}")
-        await bot.reply_to(
-            message,
-            "❌ Установите username в Telegram, чтобы использовать бота.\n\nОткройте настройки Telegram → Изменить имя пользователя",
-        )
+    # Full authorization check with user feedback
+    if not await is_authorized(message):
         return
 
     # Check rate limit (skip for admin)
