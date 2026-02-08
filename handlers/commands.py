@@ -15,22 +15,22 @@ from config import DEFAULT_SYSTEM_PROMPT
 
 @bot.message_handler(commands=["help", "start"])
 @require_auth()
-def send_welcome(message):
+async def send_welcome(message):
     # Для админа показываем расширенную справку
     from auth.access_control import is_admin
 
     help_text = HELP_TEXTS["admin"] if is_admin(message) else HELP_TEXTS["user"]
-    bot.reply_to(message, help_text, parse_mode="Markdown")
+    await bot.reply_to(message, help_text, parse_mode="Markdown")
 
 
 @bot.message_handler(commands=["new"])
 @require_auth()
 @log_command
 @handle_errors("❌ Не удалось очистить историю. Попробуйте позже.")
-def clear_history(message):
+async def clear_history(message):
     success = clear_chat_history(message.chat.id)
     if success:
-        bot.reply_to(message, "✅ История чата очищена!")
+        await bot.reply_to(message, "✅ История чата очищена!")
     else:
         raise Exception("Failed to clear chat history")
 
@@ -39,7 +39,7 @@ def clear_history(message):
 @require_auth()
 @log_command
 @handle_errors()
-def list_models(message):
+async def list_models(message):
     current_model = get_user_model(message.chat.id)
     models_by_owner = fetch_models()
 
@@ -55,17 +55,17 @@ def list_models(message):
     models_list += f"🔧 Текущая модель: `{current_model}`"
     models_list += "\n\nИспользуй /model <название> для смены модели"
 
-    bot.reply_to(message, models_list, parse_mode="Markdown")
+    await bot.reply_to(message, models_list, parse_mode="Markdown")
 
 
 @bot.message_handler(commands=["model"])
 @require_auth()
 @log_command
 @handle_errors()
-def set_model(message):
+async def set_model(message):
     args = message.text.split("/model")[1].strip()
     if len(args) == 0:
-        bot.reply_to(
+        await bot.reply_to(
             message,
             "Используй: /model <название>\n\nСписок моделей: /models",
             parse_mode="Markdown",
@@ -81,7 +81,7 @@ def set_model(message):
         all_models.extend(models)
 
     if model_name not in all_models:
-        bot.reply_to(
+        await bot.reply_to(
             message,
             f"❌ Модель `{model_name}` не найдена.\n\nСписок моделей: /models",
             parse_mode="Markdown",
@@ -89,7 +89,7 @@ def set_model(message):
         return
 
     set_user_model(message.chat.id, model_name)
-    bot.reply_to(
+    await bot.reply_to(
         message,
         f"✅ Модель изменена на: `{model_name}`",
         parse_mode="Markdown",
@@ -101,10 +101,10 @@ def set_model(message):
 @rate_limited
 @log_command
 @handle_errors("Произошла ошибка, попробуйте позже!")
-def image(message):
+async def image(message):
     prompt = message.text.split("/image")[1].strip()
     if len(prompt) == 0:
-        bot.reply_to(message, "Введите запрос после команды /image")
+        await bot.reply_to(message, "Введите запрос после команды /image")
         return
 
     response = client.images.generate(
@@ -112,7 +112,7 @@ def image(message):
     )
     image_url = response.data[0].url
 
-    bot.send_photo(
+    await bot.send_photo(
         message.chat.id,
         image_url,
         reply_to_message_id=message.message_id,
@@ -123,7 +123,7 @@ def image(message):
 @require_auth()
 @log_command
 @handle_errors()
-def show_system_prompt(message):
+async def show_system_prompt(message):
     """Показать текущий system prompt"""
     user_prompt = get_user_system_prompt(message.chat.id)
 
@@ -134,19 +134,19 @@ def show_system_prompt(message):
         response = f"🔧 *Дефолтный system prompt:*\n\n```\n{DEFAULT_SYSTEM_PROMPT}\n```\n\n"
         response += "Используйте /set_system_prompt для установки своего промпта"
 
-    bot.reply_to(message, response, parse_mode="Markdown")
+    await bot.reply_to(message, response, parse_mode="Markdown")
 
 
 @bot.message_handler(commands=["set_system_prompt"])
 @require_auth()
 @log_command
 @handle_errors()
-def set_system_prompt_command(message):
+async def set_system_prompt_command(message):
     """Установить пользовательский system prompt"""
     args = message.text.split("/set_system_prompt", 1)
 
     if len(args) < 2 or not args[1].strip():
-        bot.reply_to(
+        await bot.reply_to(
             message,
             "❌ Введите текст промпта после команды.\n\n"
             "Использование: /set_system_prompt <текст>\n\n"
@@ -160,7 +160,7 @@ def set_system_prompt_command(message):
 
     # Ограничение длины промпта (разумное ограничение)
     if len(prompt) > 2000:
-        bot.reply_to(
+        await bot.reply_to(
             message,
             f"❌ System prompt слишком длинный ({len(prompt)} символов).\n"
             "Максимальная длина: 2000 символов.",
@@ -174,14 +174,14 @@ def set_system_prompt_command(message):
     response += "Используйте /system_prompt для просмотра\n"
     response += "Используйте /reset_system_prompt для сброса"
 
-    bot.reply_to(message, response, parse_mode="Markdown")
+    await bot.reply_to(message, response, parse_mode="Markdown")
 
 
 @bot.message_handler(commands=["reset_system_prompt"])
 @require_auth()
 @log_command
 @handle_errors()
-def reset_system_prompt_command(message):
+async def reset_system_prompt_command(message):
     """Сбросить system prompt к дефолтному"""
     was_reset = reset_user_system_prompt(message.chat.id)
 
@@ -191,4 +191,4 @@ def reset_system_prompt_command(message):
     else:
         response = "ℹ️ У вас уже используется дефолтный system prompt."
 
-    bot.reply_to(message, response, parse_mode="Markdown")
+    await bot.reply_to(message, response, parse_mode="Markdown")

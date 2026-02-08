@@ -11,11 +11,11 @@ from ai.processor import process_text_message
 
 
 @bot.message_handler(func=lambda message: is_authorized(message), content_types=["text", "photo"])
-def echo_message(message):
+async def echo_message(message):
     # Без username не обрабатываем
     if not message.from_user.username:
         app_logger.warning(f"Message denied: missing username, chat_id={message.chat.id}")
-        bot.reply_to(
+        await bot.reply_to(
             message,
             "❌ Установите username в Telegram, чтобы использовать бота.\n\nОткройте настройки Telegram → Изменить имя пользователя",
         )
@@ -25,14 +25,14 @@ def echo_message(message):
     if not is_admin(message):
         allowed, wait_time = check_rate_limit(message.chat.id)
         if not allowed:
-            bot.reply_to(
+            await bot.reply_to(
                 message,
                 f"⏱️ Слишком много запросов! Пожалуйста, подождите {wait_time} секунд.",
             )
             app_logger.warning(f"Rate limit hit: user={message.from_user.username}, chat_id={message.chat.id}")
             return
 
-    start_typing(message.chat.id)
+    await start_typing(message.chat.id)
 
     try:
         text = message.text
@@ -43,13 +43,13 @@ def echo_message(message):
         if photo is not None:
             has_photo = True
             photo = photo[0]
-            file_info = bot.get_file(photo.file_id)
-            image_content = bot.download_file(file_info.file_path)
+            file_info = await bot.get_file(photo.file_id)
+            image_content = await bot.download_file(file_info.file_path)
             text = message.caption
             if text is None or len(text) == 0:
                 text = "Что на картинке?"
 
-        ai_response = process_text_message(text, message.chat.id, image_content)
+        ai_response = await process_text_message(text, message.chat.id, image_content)
 
         log_msg_type = "photo" if has_photo else "text"
         app_logger.info(
@@ -59,10 +59,10 @@ def echo_message(message):
         )
     except Exception as e:
         app_logger.error(f"Error processing message: user={message.from_user.username}, chat_id={message.chat.id}, error={str(e)}")
-        bot.reply_to(message, f"Произошла ошибка, попробуйте позже! {e}")
+        await bot.reply_to(message, f"Произошла ошибка, попробуйте позже! {e}")
         return
 
-    stop_typing(message.chat.id)
+    await stop_typing(message.chat.id)
 
     # Send with automatic splitting and parse error recovery
-    send_long_message(message.chat.id, ai_response, reply_to_message=message, parse_mode="HTML")
+    await send_long_message(message.chat.id, ai_response, reply_to_message=message, parse_mode="HTML")

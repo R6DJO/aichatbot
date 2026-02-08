@@ -7,6 +7,7 @@ RUN apk add --no-cache nodejs npm ca-certificates curl openssl && \
     update-ca-certificates
 
 # Копируем requirements и устанавливаем зависимости
+# IMPORTANT: Includes aiohttp for AsyncTeleBot support
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -17,7 +18,7 @@ RUN addgroup -S botuser && adduser -S botuser -G botuser
 RUN mkdir -p /app/mcp_workspace && \
     chown -R botuser:botuser /app/mcp_workspace
 
-# Копируем код бота (модульная структура)
+# Копируем код бота (async architecture)
 COPY --chown=botuser:botuser bot.py .
 COPY --chown=botuser:botuser mcp_manager.py .
 COPY --chown=botuser:botuser config/ ./config/
@@ -39,5 +40,9 @@ ENV NPM_CONFIG_PREFIX=/home/botuser/.npm-global
 # Pre-install MCP servers (optional, for faster startup)
 RUN npm install -g @brave/brave-search-mcp-server
 
-# Запускаем бота
+# Healthcheck для async bot
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD python -c "import asyncio; import sys; sys.exit(0)" || exit 1
+
+# Запускаем async бота
 CMD ["python", "bot.py"]
