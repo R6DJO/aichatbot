@@ -58,3 +58,6 @@ MCP_CACHE_TTL_SECONDS = int(os.environ.get("MCP_CACHE_TTL_SECONDS", "3600"))  # 
 
 # Typing indicator
 TYPING_INTERVAL_SECONDS = 4  # Interval for sending typing action
+
+# Default system prompt
+DEFAULT_SYSTEM_PROMPT = "Keep your responses concise and to the point. Prefer shorter answers over long explanations. If listing items, limit to the most important ones. Maximum response length: ~3000 characters."
