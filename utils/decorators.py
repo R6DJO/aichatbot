@@ -6,6 +6,8 @@ Provides reusable decorators for:
 - Rate limiting (@rate_limited)
 - Command logging (@log_command)
 - Error handling (@handle_errors)
+
+All decorators support async functions.
 """
 
 from functools import wraps
@@ -19,7 +21,7 @@ from config.help_texts import HELP_TEXTS
 
 def require_auth(admin_only=False):
     """
-    Decorator to require authorization.
+    Decorator to require authorization (async-compatible).
 
     Args:
         admin_only: If True, only admin can access (default: False)
@@ -30,14 +32,14 @@ def require_auth(admin_only=False):
     """
     def decorator(func):
         @wraps(func)
-        def wrapper(message):
+        async def wrapper(message):
             # Admin check
             if admin_only and not is_admin(message):
-                bot.reply_to(message, "❌ Эта команда доступна только администратору.")
+                await bot.reply_to(message, "❌ Эта команда доступна только администратору.")
                 return
 
             # Regular authorization check
-            if not is_authorized(message):
+            if not await is_authorized(message):
                 # For help/start commands, we want to show detailed error messages
                 # For other commands, is_authorized already handles the response
                 if func.__name__ in ['send_welcome', 'help_command']:
@@ -46,41 +48,41 @@ def require_auth(admin_only=False):
 
                     # Invalid username check
                     if not username or not validate_username(username):
-                        bot.reply_to(message, HELP_TEXTS["errors"]["invalid_username"])
+                        await bot.reply_to(message, HELP_TEXTS["errors"]["invalid_username"])
                         return
 
                     if status == "pending":
-                        bot.reply_to(message, HELP_TEXTS["errors"]["pending"])
+                        await bot.reply_to(message, HELP_TEXTS["errors"]["pending"])
                         return
                     elif status == "denied":
-                        bot.reply_to(message, HELP_TEXTS["errors"]["denied"])
+                        await bot.reply_to(message, HELP_TEXTS["errors"]["denied"])
                         return
                     else:
-                        bot.reply_to(message, HELP_TEXTS["errors"]["no_access"])
+                        await bot.reply_to(message, HELP_TEXTS["errors"]["no_access"])
                 return
 
-            return func(message)
+            return await func(message)
         return wrapper
     return decorator
 
 
 def rate_limited(func):
     """
-    Decorator to apply rate limiting.
+    Decorator to apply rate limiting (async-compatible).
 
     Admins bypass rate limits automatically.
 
     Usage:
         @rate_limited
-        def my_handler(message):
+        async def my_handler(message):
             ...
     """
     @wraps(func)
-    def wrapper(message):
+    async def wrapper(message):
         if not is_admin(message):
             allowed, wait_time = check_rate_limit(message.chat.id)
             if not allowed:
-                bot.reply_to(
+                await bot.reply_to(
                     message,
                     f"⏱️ Слишком много запросов! Пожалуйста, подождите {wait_time} секунд."
                 )
@@ -91,35 +93,35 @@ def rate_limited(func):
                 )
                 return
 
-        return func(message)
+        return await func(message)
     return wrapper
 
 
 def log_command(func):
     """
-    Decorator to log command execution.
+    Decorator to log command execution (async-compatible).
 
     Logs: command name, username, and chat_id
 
     Usage:
         @log_command
-        def my_handler(message):
+        async def my_handler(message):
             ...
     """
     @wraps(func)
-    def wrapper(message):
+    async def wrapper(message):
         command = message.text.split()[0] if message.text else "unknown"
         username = message.from_user.username if message.from_user else "unknown"
         app_logger.info(
             f"Command {command}: user={username}, chat_id={message.chat.id}"
         )
-        return func(message)
+        return await func(message)
     return wrapper
 
 
 def handle_errors(error_message="Произошла ошибка, попробуйте позже!"):
     """
-    Decorator to handle exceptions.
+    Decorator to handle exceptions (async-compatible).
 
     Args:
         error_message: Custom error message to show user (default: generic error)
@@ -127,20 +129,20 @@ def handle_errors(error_message="Произошла ошибка, попробу
     Usage:
         @handle_errors()
         @handle_errors("Custom error message")
-        def my_handler(message):
+        async def my_handler(message):
             ...
     """
     def decorator(func):
         @wraps(func)
-        def wrapper(message):
+        async def wrapper(message):
             try:
-                return func(message)
+                return await func(message)
             except Exception as e:
                 username = message.from_user.username if message.from_user else "unknown"
                 app_logger.error(
                     f"Error in {func.__name__}: user={username}, "
                     f"chat_id={message.chat.id}, error={str(e)}"
                 )
-                bot.reply_to(message, error_message)
+                await bot.reply_to(message, error_message)
         return wrapper
     return decorator
