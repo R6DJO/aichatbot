@@ -1,8 +1,11 @@
 # AI and API
 openai
 
-# Telegram Bot
+# Telegram Bot (Async support)
 pyTelegramBotAPI==4.24.0
+
+# Async HTTP client (required for AsyncTeleBot)
+aiohttp>=3.9.0
 
 # AWS S3
 boto3==1.35.70

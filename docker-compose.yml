@@ -1,7 +1,7 @@
 services:
   bot:
     build: .
-    container_name: telegram-bot
+    container_name: telegram-bot-async
     restart: unless-stopped
     env_file:
       - .env
@@ -11,8 +11,27 @@ services:
     depends_on:
       minio:
         condition: service_healthy
+      minio-setup:
+        condition: service_completed_successfully
     environment:
       - MINIO_ENDPOINT=http://minio:9000
+      # AsyncTeleBot environment
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import asyncio; import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    # Resource limits для async bot (может обрабатывать больше запросов)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
 
   minio:
     image: minio/minio:latest
@@ -32,6 +51,14 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
   minio-setup:
     image: minio/mc:latest
