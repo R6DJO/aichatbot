@@ -12,6 +12,7 @@ import handlers  # Import to register all handlers
 import ai.processor
 
 # Initialize MCP Manager (global singleton)
+# Note: warmup is done inside async main() to avoid event loop conflicts
 if os.environ.get("MCP_ENABLED", "false").lower() == "true":
     try:
         from mcp_manager import MCPServerManager, load_mcp_configs_from_env
@@ -19,18 +20,6 @@ if os.environ.get("MCP_ENABLED", "false").lower() == "true":
         configs = load_mcp_configs_from_env()
         ai.processor.mcp_manager = MCPServerManager(configs)
         app_logger.info(f"MCP Manager initialized with {len(configs)} server configs")
-
-        # Warm up cache at startup (optional, can be disabled with MCP_WARMUP_CACHE=false)
-        if os.environ.get("MCP_WARMUP_CACHE", "true").lower() == "true":
-            async def warmup():
-                try:
-                    app_logger.info("Warming up MCP tools cache...")
-                    tools = await ai.processor.mcp_manager.get_all_tools()
-                    app_logger.info(f"Cache warmed up with {len(tools)} tools")
-                except Exception as warmup_error:
-                    app_logger.warning(f"Failed to warm up cache (will retry on first request): {warmup_error}")
-
-            asyncio.run(warmup())
     except Exception as e:
         app_logger.error(f"Failed to initialize MCP Manager: {e}")
         ai.processor.mcp_manager = None
@@ -67,6 +56,15 @@ async def main():
     # Register signal handlers
     signal.signal(signal.SIGINT, shutdown_handler)
     signal.signal(signal.SIGTERM, shutdown_handler)
+
+    # Warm up MCP cache inside the main event loop (avoids async generator errors)
+    if ai.processor.mcp_manager and os.environ.get("MCP_WARMUP_CACHE", "true").lower() == "true":
+        try:
+            app_logger.info("Warming up MCP tools cache...")
+            tools = await ai.processor.mcp_manager.get_all_tools()
+            app_logger.info(f"Cache warmed up with {len(tools)} tools")
+        except Exception as warmup_error:
+            app_logger.warning(f"Failed to warm up cache (will retry on first request): {warmup_error}")
 
     app_logger.info("Бот запущен в async режиме polling...")
     await bot.infinity_polling()
