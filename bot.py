@@ -18,9 +18,10 @@ shutdown_requested = False
 # Note: warmup is done inside async main() to avoid event loop conflicts
 if os.environ.get("MCP_ENABLED", "false").lower() == "true":
     try:
-        from mcp_manager import MCPServerManager, load_mcp_configs_from_env
+        from mcp_manager import MCPServerManager, load_mcp_configs_from_json
+        from core.async_helpers import run_async
 
-        configs = load_mcp_configs_from_env()
+        configs = load_mcp_configs_from_json()
         ai.processor.mcp_manager = MCPServerManager(configs)
         app_logger.info(f"MCP Manager initialized with {len(configs)} server configs")
     except Exception as e:
