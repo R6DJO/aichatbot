@@ -7,7 +7,7 @@ from config import MAX_MESSAGE_LENGTH
 from utils.formatters import markdown_to_html
 
 
-def send_long_message(chat_id, text, reply_to_message=None, parse_mode="HTML"):
+async def send_long_message(chat_id, text, reply_to_message=None, parse_mode="HTML"):
     """
     Send a message, splitting it if it's too long (Telegram limit: 4096 chars).
 
@@ -26,7 +26,7 @@ def send_long_message(chat_id, text, reply_to_message=None, parse_mode="HTML"):
     # Try with formatting first
     if parse_mode:
         try:
-            _send_message_chunks(chat_id, text, reply_to_message, parse_mode)
+            await _send_message_chunks(chat_id, text, reply_to_message, parse_mode)
             return
         except Exception as e:
             if "can't parse entities" in str(e) or "Bad Request" in str(e):
@@ -37,10 +37,10 @@ def send_long_message(chat_id, text, reply_to_message=None, parse_mode="HTML"):
                 raise
 
     # Plain text fallback (or if parse_mode was None from the start)
-    _send_message_chunks(chat_id, text, reply_to_message, parse_mode=None)
+    await _send_message_chunks(chat_id, text, reply_to_message, parse_mode=None)
 
 
-def _send_message_chunks(chat_id, text, reply_to_message, parse_mode):
+async def _send_message_chunks(chat_id, text, reply_to_message, parse_mode):
     """
     Internal function to send message chunks.
 
@@ -53,9 +53,9 @@ def _send_message_chunks(chat_id, text, reply_to_message, parse_mode):
     if len(text) <= MAX_MESSAGE_LENGTH:
         # Send single message
         if reply_to_message:
-            bot.reply_to(reply_to_message, text, parse_mode=parse_mode)
+            await bot.reply_to(reply_to_message, text, parse_mode=parse_mode)
         else:
-            bot.send_message(chat_id, text, parse_mode=parse_mode)
+            await bot.send_message(chat_id, text, parse_mode=parse_mode)
     else:
         # Split into chunks
         chunks = _split_text_into_chunks(text, MAX_MESSAGE_LENGTH)
@@ -63,9 +63,9 @@ def _send_message_chunks(chat_id, text, reply_to_message, parse_mode):
         # Send each chunk
         for i, chunk in enumerate(chunks):
             if reply_to_message and i == 0:
-                bot.reply_to(reply_to_message, chunk, parse_mode=parse_mode)
+                await bot.reply_to(reply_to_message, chunk, parse_mode=parse_mode)
             else:
-                bot.send_message(chat_id, chunk, parse_mode=parse_mode)
+                await bot.send_message(chat_id, chunk, parse_mode=parse_mode)
 
 
 def _split_text_into_chunks(text, max_length):
