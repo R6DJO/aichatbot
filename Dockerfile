@@ -39,6 +39,8 @@ ENV NPM_CONFIG_PREFIX=/home/botuser/.npm-global
 
 # Pre-install MCP servers (optional, for faster startup)
 RUN npm install -g @brave/brave-search-mcp-server
+RUN npm install -g mcp-fetch-server
+RUN npm install -g mcp-remote
 
 # Healthcheck для async bot
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
