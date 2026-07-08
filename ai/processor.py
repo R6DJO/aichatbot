@@ -4,6 +4,7 @@ AI message processing with MCP tool support.
 
 import base64
 import time
+from datetime import datetime
 from config import MAX_HISTORY_LENGTH, MAX_VISION_TOKENS, MCP_MAX_ITERATIONS, API_MAX_RETRIES, DEFAULT_SYSTEM_PROMPT
 from core.openai_client import client
 from core.telegram import app_logger
@@ -47,13 +48,13 @@ async def process_text_message(text, chat_id, image_content=None):
     history_text_only = history.copy()
     history_text_only.append({"role": "user", "content": text})
 
-    # Add system message (use custom user prompt or default)
+    # Add system message (use custom user prompt or default) with current datetime
     user_prompt = get_user_system_prompt(chat_id)
-    system_prompt_content = user_prompt if user_prompt else DEFAULT_SYSTEM_PROMPT
-
+    base_prompt = user_prompt if user_prompt else DEFAULT_SYSTEM_PROMPT
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC%z")
     system_message = {
         "role": "system",
-        "content": system_prompt_content
+        "content": f"{base_prompt}\n\nCurrent date and time: {now_str}"
     }
     history = [system_message] + history
 
